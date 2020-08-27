@@ -4,3 +4,9 @@ services:
         image: nginx
         ports: 
             - "8080:80"
+    
+    app:
+        build: ./app
+        tty: true
+        volumes:
+            - .:/go/app
