@@ -1,5 +1,11 @@
 package main
 
+/*
+#cgo LDFLAGS: -L../core -laias_core
+#include "../core/core.h"
+*/
+import "C"
+
 import (
 	"fmt"
 	"log"
@@ -14,6 +20,8 @@ func SampleServer(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func main() {
+	log.Println("starting server...")
+
 	router := httprouter.New()
 
 	router.GET("/", SampleServer)

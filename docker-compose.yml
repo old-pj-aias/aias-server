@@ -9,7 +9,7 @@ services:
         build: ./app
         tty: true
         volumes:
-            - ./app:/go/app
+            - ./app/src/:/go/app/src
 
     db:
         build: ./db
