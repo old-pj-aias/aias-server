@@ -16,6 +16,7 @@ services:
         tty: true
         volumes:
             - ./app/src/:/go/app/src
+            - ./app/aias-core:/go/app/aias-core
         links:
             - db
 
