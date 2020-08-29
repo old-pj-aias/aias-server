@@ -1,15 +1,23 @@
 version: '3'
 services: 
     nginx:
-        image: nginx
+        build: ./nginx
+        volumes:
+            - ./nginx/conf.d:/etc/nginx/conf.d
+            #- ./nginx/ssl:/etc/nginx/ssl
         ports: 
             - "8080:80"
+            #- "8081:443"
+        links:
+            - app
     
     app:
         build: ./app
         tty: true
         volumes:
             - ./app/src/:/go/app/src
+        links:
+            - db
 
     db:
         build: ./db

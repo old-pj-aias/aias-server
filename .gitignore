@@ -16,3 +16,6 @@
 
 # MySQL data
 db/data
+
+# SSL certificate
+nginx/ssl/*
