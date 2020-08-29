@@ -2,14 +2,20 @@ version: '3'
 services: 
     nginx:
         image: nginx
+        volumes:
+            - ./nginx.conf:/etc/nginx/nginx.conf
         ports: 
             - "8080:80"
+        links:
+            - app
     
     app:
         build: ./app
         tty: true
         volumes:
             - ./app/src/:/go/app/src
+        links:
+            - db
 
     db:
         build: ./db
