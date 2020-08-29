@@ -29,7 +29,8 @@ func SampleServer(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	fmt.Fprintln(w, "Hello world")
 }
 
-// Start starts communication with Sender
+// Start starts communication with Sender.
+// Needs BlindedDigest (m_i) as a request body.
 func Start(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
