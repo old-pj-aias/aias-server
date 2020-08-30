@@ -15,17 +15,4 @@ services:
         build: ./app
         tty: true
         volumes:
-            - ./app/src/:/go/app/src
-            - ./app/aias-core:/go/app/aias-core
-        links:
-            - db
-
-    db:
-        build: ./db
-        volumes:
-            - ./db/init:/docker-entrypoint-initdb.d
-            - ./db/data:/var/lib/mysql
-        environment: 
-            MYSQL_ROOT_PASSWORD: PASSWORD
-            MYSQL_USER: mysql
-            MYSQL_PASSWORD: password
+            - ./app:/app
