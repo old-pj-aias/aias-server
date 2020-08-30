@@ -10,3 +10,4 @@ edition = "2018"
 actix-web = "2.0"
 actix-rt = "1.0"
 aias-core = { git = "https://github.com/project-aias/aias-core", rev = "978b3bb" }
+fair-blind-signature = { git = "https://github.com/project-aias/fair-blind-signature", rev = "67e53b3" }
