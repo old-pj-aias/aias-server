@@ -19,3 +19,5 @@ db/data
 
 # SSL certificate
 nginx/ssl/*
+
+app/core

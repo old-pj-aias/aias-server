@@ -6,12 +6,14 @@ ENV PATH "/root/.cargo/bin:$PATH"
 
 WORKDIR /go/app/
 
-# Until we publish aias-core repo, wo must clone it manually.
-# RUN git clone https://github.com/project-aias/aias-core.git
+# Generate key pair
+RUN mkdir keys
+RUN openssl genrsa -out ./keys/id_rsa \
+    && openssl rsa -in ./keys/id_rsa -pubout -out ./keys/id_rsa.pub \
+    && openssl genrsa -out ./keys/judge_id_rsa \
+    && openssl rsa -in ./keys/judge_id_rsa -pubout -out ./keys/judge_id_rsa.pub
 
-ADD ./aias-core/core ./core
-RUN cd core && cargo build
-RUN cp core/target/debug/libaias_core.so core/
+ADD ./aias-core ./aias-core
 
 RUN go get "github.com/julienschmidt/httprouter"
 
