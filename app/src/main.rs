@@ -4,16 +4,25 @@ use rusqlite::NO_PARAMS;
 
 use std::fs;
 
+fn db_connection() -> Connection {
+    Connection::open("db.sqlite3").unwrap()
+}
+
 async fn hello() -> impl Responder {
     println!("request");
+
+    let conn = db_connection();
+
+    conn.execute("INSERT INTO sign_process (phone, m, subset)
+                  VALUES ($1, $2, $3)",
+                 &["000-000-0000", "this is m", "this is subset"]).unwrap();
 
     HttpResponse::Ok().body("Hello world")
 }
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    fs::remove_file("db.sqlite3");
-    let conn = Connection::open("db.sqlite3").unwrap();
+    let conn = db_connection();
 
     conn.execute(
         "CREATE TABLE sign_process (
