@@ -14,8 +14,9 @@ import (
 	"net/http"
 	"os"
 	"unsafe"
-
 	"github.com/julienschmidt/httprouter"
+	"gorm.io/gorm"
+	"gorm.io/driver/sqlite"
 )
 
 var (
@@ -23,6 +24,14 @@ var (
 	pubkeyC      *C.char
 	judgePubKeyC *C.char
 )
+
+var db *gorm.DB
+
+type SignProcess struct {
+	gorm.Model
+	M string
+	Subset string
+}
 
 // SampleServer sends "Hello world" response for requests to /
 func SampleServer(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -46,6 +55,8 @@ func Start(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	subset := C.setup_subset()
 	subsetGo := C.GoString(subset)
+
+	db.Create(&SignProcess{M: string(body), Subset: subsetGo})
 
 	fmt.Fprintf(w, subsetGo)
 }
@@ -71,6 +82,15 @@ func Check(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func main() {
+	_db, err := gorm.Open(sqlite.Open("db/db.slite3"), &gorm.Config{})
+	db = _db;
+
+	if err != nil {
+		panic("failed to connect database")
+	}
+	   
+	db.AutoMigrate(&SignProcess{})
+
 	log.Println("starting server...")
 
 	pubkey := readFile("keys/id_rsa.pub")

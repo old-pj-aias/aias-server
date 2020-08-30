@@ -1,31 +1,32 @@
-version: '3'
-services: 
-    nginx:
-        build: ./nginx
-        volumes:
-            - ./nginx/conf.d:/etc/nginx/conf.d
-            #- ./nginx/ssl:/etc/nginx/ssl
-        ports: 
-            - "8080:80"
-            #- "8081:443"
-        links:
-            - app
-    
-    app:
-        build: ./app
-        tty: true
-        volumes:
-            - ./app/src/:/go/app/src
-            - ./app/aias-core:/go/app/aias-core
-        links:
-            - db
+version: "3"
+services:
+  nginx:
+    build: ./nginx
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      #- ./nginx/ssl:/etc/nginx/ssl
+    ports:
+      - "8080:80"
+      #- "8081:443"
+    links:
+      - app
 
-    db:
-        build: ./db
-        volumes:
-            - ./db/init:/docker-entrypoint-initdb.d
-            - ./db/data:/var/lib/mysql
-        environment: 
-            MYSQL_ROOT_PASSWORD: PASSWORD
-            MYSQL_USER: mysql
-            MYSQL_PASSWORD: password
+  app:
+    build: ./app
+    tty: true
+    volumes:
+      - ./app/src/:/go/app/src
+      - ./app/db/:/go/app/db/
+      - ./app/aias-core:/go/app/aias-core
+    links:
+      - db
+
+  db:
+    build: ./db
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d
+      - ./db/data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: PASSWORD
+      MYSQL_USER: mysql
+      MYSQL_PASSWORD: password

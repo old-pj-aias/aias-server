@@ -21,3 +21,4 @@ db/data
 nginx/ssl/*
 
 app/core
+app/db/db.slite3

@@ -16,6 +16,8 @@ RUN openssl genrsa -out ./keys/id_rsa \
 ADD ./aias-core ./aias-core
 
 RUN go get "github.com/julienschmidt/httprouter"
+RUN go get "gorm.io/gorm"
+RUN go get "gorm.io/driver/sqlite"
 
 ADD . /go/app/
 
