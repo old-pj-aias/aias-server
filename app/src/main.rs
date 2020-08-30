@@ -1,27 +1,6 @@
-use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
-//use web::Json;
+use actix_web::{App, HttpServer, web};
 
-use serde_json;
-use serde::{Deserialize};
-
-use fair_blind_signature::CheckParameter;
-
-#[get("/hello")]
-async fn hello() -> impl Responder {
-    println!("hello");
-
-    HttpResponse::Ok().body("Hello world")
-}
-
-async fn check(bytes: web::Bytes) -> Result<String, HttpResponse> {
-    println!("check");
-
-    let bytes = bytes.to_vec();
-    let data = String::from_utf8_lossy(&bytes);
-    let params: CheckParameter = get_body(&data)?;
-
-    serde_json::to_string(&params).map_err(|e| HttpResponse::BadRequest().body(e.to_string()))
-}
+use app::*;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -29,15 +8,10 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(|| {
         App::new()
-            .route("/check", web::post().to(check))
-            .service(hello)
+            .route("/check", web::post().to(handler::check))
+            .route("/hello", web::get().to(handler::hello))
     })
     .bind("localhost:8080")?
     .run()
     .await
-}
-
-fn get_body<'a, T: Deserialize<'a>>(data: &'a str) -> Result<T, HttpResponse> {
-    serde_json::from_slice(&data.as_bytes())
-        .map_err(|e| HttpResponse::BadRequest().body(e.to_string()))
 }
