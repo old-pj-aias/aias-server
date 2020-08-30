@@ -18,3 +18,4 @@ Cargo.lock
 
 # static library
 *.so
+db.sqlite3
