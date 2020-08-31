@@ -1,6 +1,14 @@
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+
+pub mod handler;
+pub mod utils;
+pub mod tests;
+
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use std::sync::{Arc, Mutex};
-use app::*;
+
+use utils::{Keys};
 
 use rusqlite::params;
 
@@ -10,7 +18,7 @@ use std::fs;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    let conn = db_connection();
+    let conn = utils::db_connection();
 
     conn.execute(
         "CREATE TABLE sign_process (

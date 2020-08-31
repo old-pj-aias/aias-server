@@ -8,10 +8,12 @@ use std::sync::{Arc, Mutex};
 use futures::stream::poll_fn;
 use rusqlite::params;
 
+use crate::utils;
+
 
 #[actix_rt::test]
 async fn test() {
-    let conn = db_connection();
+    let conn = utils::db_connection();
 
     conn.execute(
         "CREATE TABLE sign_process (
