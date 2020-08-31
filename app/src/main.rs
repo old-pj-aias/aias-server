@@ -1,11 +1,13 @@
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use rusqlite::{params, Connection, Result};
-use rusqlite::NO_PARAMS;
 
-use std::fs;
 
 fn db_connection() -> Connection {
     Connection::open("db.sqlite3").unwrap()
+}
+
+struct Data {
+    data: String,
 }
 
 async fn hello() -> impl Responder {
@@ -16,6 +18,17 @@ async fn hello() -> impl Responder {
     conn.execute("INSERT INTO sign_process (phone, m, subset)
                   VALUES ($1, $2, $3)",
                  &["000-000-0000", "this is m", "this is subset"]).unwrap();
+
+    
+    let mut stmt = conn.prepare("SELECT subset FROM sign_process WHERE id=?").unwrap();
+
+    let subset = stmt.query_map(params![1], |row| {
+        Ok(Data { data: row.get(0).unwrap() })
+    }).unwrap();
+
+    for s in subset {
+        println!("m: {}", s.unwrap().data);
+    }
 
     HttpResponse::Ok().body("Hello world")
 }
@@ -32,7 +45,7 @@ async fn main() -> std::io::Result<()> {
                   subset          TEXT NOT NULL
                   )",
         params![],
-    ).unwrap();
+    );
 
     println!("server started");
 
