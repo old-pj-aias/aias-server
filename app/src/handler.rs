@@ -31,7 +31,7 @@ pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) ->
 
     conn.execute("INSERT INTO sign_process (phone, m, subset)
                   VALUES ($1, $2, $3)",
-                 &["000-000-0000", &body.to_string(), &subset]).unwrap();
+                 &["10", &body.to_string(), &subset]).unwrap();
 
     Ok(subset)
 }
@@ -48,20 +48,18 @@ pub async fn check(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) ->
 
 
     let conn = utils::db_connection();
-    let mut stmt = conn.prepare("SELECT phone, m, subset FROM sign_process WHERE id=?")
+    let mut stmt = conn.prepare("SELECT m, subset FROM sign_process WHERE phone=?")
         .expect("failed to select");
 
     struct SubsetData {
-        phone: String,
         m: String,
         subset: String
     }
 
-    let SubsetData {phone, m, subset} = stmt.query_row(rusqlite::params![id], |row| {
+    let SubsetData {m, subset} = stmt.query_row(rusqlite::params!["10"], |row| {
         Ok(SubsetData {
-            phone: row.get(0).unwrap(),
-            m: row.get(1).unwrap(),
-            subset: row.get(2).unwrap()
+            m: row.get(0).unwrap(),
+            subset: row.get(1).unwrap()
         })
     })
     .unwrap();
