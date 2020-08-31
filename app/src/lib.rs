@@ -1,4 +1,12 @@
 pub mod handler;
+pub mod tests;
+
+#[derive(Debug, Default)]
+pub struct Keys {
+    pub signer_pubkey: String,
+    pub signer_privkey: String,
+    pub judge_pubkey: String
+}
 
 use actix_web::{HttpResponse};
 use serde::Deserialize;
