@@ -48,7 +48,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .data(data.clone())
             .route("/ready", web::post().to(handler::ready))
-            .route("/check", web::post().to(handler::check))
+            .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))
     })
     .bind("localhost:8080")?
