@@ -1,6 +1,6 @@
 use super::*;
 use actix_web::{test, web, App};
-use aias_core::{judge, sender};
+use aias_core::{judge, sender, verifyer};
 
 use std::fs;
 use std::sync::{Arc, Mutex};
@@ -11,7 +11,7 @@ use rusqlite::params;
 
 #[actix_rt::test]
 async fn test() {
-    let conn = db_connection();
+    let conn = utils::db_connection();
 
     conn.execute(
         "CREATE TABLE sign_process (
@@ -31,23 +31,35 @@ async fn test() {
     let blinded_digest = sender::blind("hoge".to_string());
 
     let data = Arc::new(Mutex::new(Keys {
-        signer_pubkey: signer_pubkey,
-        signer_privkey: signer_privkey,
-        judge_pubkey: judge_pubkey
+        signer_pubkey: signer_pubkey.clone(),
+        signer_privkey: signer_privkey.clone(),
+        judge_pubkey: judge_pubkey.clone()
     }));
 
     let mut app = test::init_service(
         App::new()
         .data(data)
-        .route("/ready", web::post().to(handler::ready))).await;
+        .route("/ready", web::post().to(handler::ready))
+        .route("/sign", web::post().to(handler::sign))).await;
 
     let req = test::TestRequest::post().uri("/ready").set_payload(blinded_digest).to_request();
     let resp = test::call_service(&mut app, req).await;
 
     let bytes = test::read_body(resp).await;
-    let body = String::from_utf8(bytes.to_vec()).unwrap();
+    let subset = String::from_utf8(bytes.to_vec()).unwrap();
 
+    sender::set_subset(subset);
+    let params = sender::generate_check_parameters();
 
-    println!("{:?}", body);
-    // assert!(resp.status().is_client_error());
+    let req = test::TestRequest::post().uri("/sign").set_payload(params).to_request();
+    let resp = test::call_service(&mut app, req).await;
+
+    let bytes = test::read_body(resp).await;
+    let blind_signature = String::from_utf8(bytes.to_vec()).unwrap();
+
+    let signature = sender::unblind(blind_signature);
+
+    let result = verifyer::verify(signature, "hoge".to_string(), signer_pubkey, judge_pubkey);
+
+    assert!(result);
 }

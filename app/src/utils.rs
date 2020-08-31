@@ -1,6 +1,3 @@
-pub mod handler;
-pub mod tests;
-
 use rusqlite::{Connection, Result};
 use actix_web::{HttpResponse};
 use serde::Deserialize;
@@ -17,7 +14,11 @@ pub fn db_connection() -> Connection {
 }
 
 
-pub fn get_body<'a, T: Deserialize<'a>>(data: &'a str) -> Result<T, HttpResponse> {
+pub fn parse_or_400<'a, T: Deserialize<'a>>(data: &'a str) -> Result<T, HttpResponse> {
     serde_json::from_slice(&data.as_bytes())
-        .map_err(|e| HttpResponse::BadRequest().body(e.to_string()))
+        .map_err(bad_request)
+}
+
+pub fn bad_request<T: ToString>(data: T) -> HttpResponse {
+    HttpResponse::BadRequest().body(data.to_string())
 }
