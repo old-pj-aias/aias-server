@@ -1,14 +1,27 @@
-use actix_web::{App, HttpServer, web};
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use std::sync::{Arc, Mutex};
-
-
 use app::*;
-mod tests;
+
+use rusqlite::params;
+
 
 use std::fs;
 
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
+    let conn = db_connection();
+
+    conn.execute(
+        "CREATE TABLE sign_process (
+                  id              INTEGER PRIMARY KEY,
+                  phone           TEXT NOT NULL,
+                  m               TEXT NOT NULL,
+                  subset          TEXT NOT NULL
+                  )",
+        params![],
+    );
+
     println!("server started");
 
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem")?;

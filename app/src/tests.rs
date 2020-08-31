@@ -6,10 +6,23 @@ use std::fs;
 use std::sync::{Arc, Mutex};
 
 use futures::stream::poll_fn;
+use rusqlite::params;
 
 
 #[actix_rt::test]
 async fn test() {
+    let conn = db_connection();
+
+    conn.execute(
+        "CREATE TABLE sign_process (
+                  id              INTEGER PRIMARY KEY,
+                  phone           TEXT NOT NULL,
+                  m               TEXT NOT NULL,
+                  subset          TEXT NOT NULL
+                  )",
+        params![],
+    );
+
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem").unwrap();
     let signer_privkey = fs::read_to_string("keys/signer_privkey.pem").unwrap();
     let judge_pubkey = fs::read_to_string("keys/judge_pubkey.pem").unwrap();

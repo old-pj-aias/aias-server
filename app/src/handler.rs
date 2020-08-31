@@ -4,7 +4,6 @@ use fair_blind_signature::CheckParameter;
 use aias_core::signer::Signer;
 use std::sync::{Arc, Mutex};
 
-
 use crate::*;
 
 pub async fn hello() -> impl Responder {
@@ -27,6 +26,12 @@ pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) ->
 
     signer.set_blinded_digest(body.to_string()).unwrap();
     let subset = signer.setup_subset();
+
+    let conn = db_connection();
+
+    conn.execute("INSERT INTO sign_process (phone, m, subset)
+                  VALUES ($1, $2, $3)",
+                 &["000-000-0000", &body.to_string(), &subset]).unwrap();
 
     Ok(subset)
 }
