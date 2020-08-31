@@ -4,12 +4,12 @@ version = "0.1.0"
 authors = ["akakou <akakou571@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 fair-blind-signature = { git = "https://github.com/project-aias/fair-blind-signature", rev = "20b451b" }
 aias-core = { path = "./core/core" }
-
 actix-web = "2.0"
 actix-rt = "1.0"
 rusqlite = "0.24.0"
+futures = "0.3.5"
+serde_json = "1.0.57"
+serde = "1.0.115"
