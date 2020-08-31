@@ -11,6 +11,7 @@ use rusqlite::params;
 
 #[actix_rt::test]
 async fn test() {
+    fs::remove_file("db.sqlite3");
     let conn = utils::db_connection();
 
     conn.execute(

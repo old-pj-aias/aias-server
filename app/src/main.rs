@@ -18,6 +18,8 @@ use std::fs;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
+    fs::remove_file("db.sqlite3");
+    
     let conn = utils::db_connection();
 
     if let Err(e) = conn.execute(
@@ -51,7 +53,7 @@ async fn main() -> std::io::Result<()> {
             .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))
     })
-    .bind("localhost:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
