@@ -20,7 +20,7 @@ use std::fs;
 async fn main() -> std::io::Result<()> {
     let conn = utils::db_connection();
 
-    conn.execute(
+    if let Err(e) = conn.execute(
         "CREATE TABLE sign_process (
                   id              INTEGER PRIMARY KEY,
                   phone           TEXT NOT NULL,
@@ -28,7 +28,9 @@ async fn main() -> std::io::Result<()> {
                   subset          TEXT NOT NULL
                   )",
         params![],
-    );
+    ) {
+        eprintln!("error creating table: {}", e);
+    }
 
     println!("server started");
 

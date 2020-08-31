@@ -15,7 +15,7 @@ use crate::utils;
 async fn test() {
     let conn = utils::db_connection();
 
-    conn.execute(
+    if let Err(e) = conn.execute(
         "CREATE TABLE sign_process (
                   id              INTEGER PRIMARY KEY,
                   phone           TEXT NOT NULL,
@@ -23,7 +23,11 @@ async fn test() {
                   subset          TEXT NOT NULL
                   )",
         params![],
-    );
+    ) {
+        eprintln!("error creating table: {}", e);
+    };
+
+
 
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem").unwrap();
     let signer_privkey = fs::read_to_string("keys/signer_privkey.pem").unwrap();
