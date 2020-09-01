@@ -18,7 +18,7 @@ pub fn create_table_sign_process() -> Result<()>{
         "CREATE TABLE sign_process (
                   id              INTEGER PRIMARY KEY,
                   phone           TEXT NOT NULL,
-                  m               TEXT NOT NULL,
+                  blinded_digest  TEXT NOT NULL,
                   subset          TEXT NOT NULL,
                   session_id      INTEGER NOT NULL,
                   judge_pubkey    TEXT NOT NULL

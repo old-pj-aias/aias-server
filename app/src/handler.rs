@@ -31,7 +31,7 @@ pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) ->
 
     let conn = utils::db_connection();
 
-    conn.execute("INSERT INTO sign_process (phone, m, subset, session_id, judge_pubkey)
+    conn.execute("INSERT INTO sign_process (phone, blinded_digest, subset, session_id, judge_pubkey)
                   VALUES ($1, $2, $3, $4, $5)",
                  &["10", &body.to_string(), &subset, &"10".to_string(), &judge_pubkey]).unwrap();
 
@@ -48,7 +48,7 @@ pub async fn sign(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> 
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
 
     let conn = utils::db_connection();
-    let mut stmt = conn.prepare("SELECT m, subset, judge_pubkey FROM sign_process WHERE session_id=?")
+    let mut stmt = conn.prepare("SELECT blinded_digest, subset, judge_pubkey FROM sign_process WHERE session_id=?")
         .expect("failed to select");
 
     struct SignData {
@@ -72,6 +72,7 @@ pub async fn sign(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> 
     let check_parameter = String::from_utf8_lossy(&body);
 
     if !signer.check(check_parameter.to_string()) {
+        eprintln!("check parameter: {}", check_parameter);
         return Err(utils::bad_request("invalid"));
     }
 
