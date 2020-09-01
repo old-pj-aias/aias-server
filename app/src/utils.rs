@@ -5,8 +5,7 @@ use serde::Deserialize;
 #[derive(Debug, Default)]
 pub struct Keys {
     pub signer_pubkey: String,
-    pub signer_privkey: String,
-    pub judge_pubkey: String
+    pub signer_privkey: String
 }
 
 pub fn db_connection() -> Connection {
