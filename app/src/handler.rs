@@ -19,12 +19,10 @@ pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) ->
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
 
-    let judge_pubkey = actix_data.lock().unwrap().judge_pubkey.clone();
-
     let body = String::from_utf8_lossy(&body).to_string();
     let mut signer = Signer::new_with_blinded_digest(signer_privkey, signer_pubkey, body);
 
-    let subset = signer.setup_subset();
+    let subset: String = signer.setup_subset();
 
     let conn = utils::db_connection();
 
@@ -43,22 +41,24 @@ pub async fn sign(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> 
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
-    let judge_pubkey = actix_data.lock().unwrap().judge_pubkey.clone();
-
 
     let conn = utils::db_connection();
-    let mut stmt = conn.prepare("SELECT m, subset FROM sign_process WHERE phone=?")
+    let mut stmt = conn.prepare("SELECT m, subset, session_id, judge_pubkey FROM sign_process WHERE phone=?")
         .expect("failed to select");
 
-    struct SubsetData {
+    struct SignData {
         m: String,
-        subset: String
+        subset: String,
+        id: u32,
+        judge_pubkey: String
     }
 
-    let SubsetData {m, subset} = stmt.query_row(rusqlite::params!["10"], |row| {
-        Ok(SubsetData {
+    let SignData {m, subset, id, judge_pubkey} = stmt.query_row(rusqlite::params!["10"], |row| {
+        Ok(SignData {
             m: row.get(0).unwrap(),
-            subset: row.get(1).unwrap()
+            subset: row.get(1).unwrap(),
+            id: row.get(2).unwrap(),
+            judge_pubkey: row.get(3).unwrap()
         })
     })
     .unwrap();

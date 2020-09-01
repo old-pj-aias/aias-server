@@ -39,7 +39,6 @@ async fn test() {
     let data = Arc::new(Mutex::new(Keys {
         signer_pubkey: signer_pubkey.clone(),
         signer_privkey: signer_privkey.clone(),
-        judge_pubkey: judge_pubkey.clone()
     }));
 
     let mut app = test::init_service(

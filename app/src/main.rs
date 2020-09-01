@@ -46,8 +46,7 @@ async fn main() -> std::io::Result<()> {
 
     let data = Arc::new(Mutex::new(Keys {
         signer_pubkey: signer_pubkey,
-        signer_privkey: signer_privkey,
-        judge_pubkey: judge_pubkey
+        signer_privkey: signer_privkey
     }));
 
     HttpServer::new(move || {
