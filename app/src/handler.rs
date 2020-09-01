@@ -72,7 +72,6 @@ pub async fn sign(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> 
     let check_parameter = String::from_utf8_lossy(&body);
 
     if !signer.check(check_parameter.to_string()) {
-        eprintln!("check parameter: {}", check_parameter);
         return Err(utils::bad_request("invalid"));
     }
 
