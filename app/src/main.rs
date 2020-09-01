@@ -29,7 +29,9 @@ async fn main() -> std::io::Result<()> {
                   id              INTEGER PRIMARY KEY,
                   phone           TEXT NOT NULL,
                   m               TEXT NOT NULL,
-                  subset          TEXT NOT NULL
+                  subset          TEXT NOT NULL,
+                  session_id      INTEGER NOT NULL,
+                  judge_pubkey    TEXT NOT NULL
                   )",
         params![],
     ) {
