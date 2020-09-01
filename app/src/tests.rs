@@ -1,6 +1,6 @@
 use super::*;
 use actix_web::{test, web, App};
-use aias_core::{judge, sender, verifyer};
+use aias_core::{judge, sender, signer, verifyer};
 
 use std::fs;
 use std::sync::{Arc, Mutex};
@@ -17,24 +17,13 @@ async fn test() {
 
     let conn = utils::db_connection();
 
-    if let Err(e) = conn.execute(
-        "CREATE TABLE sign_process (
-                  id              INTEGER PRIMARY KEY,
-                  phone           TEXT NOT NULL,
-                  m               TEXT NOT NULL,
-                  subset          TEXT NOT NULL
-                  )",
-        params![],
-    ) {
-        eprintln!("an error occured on creating table: {}", e);
-    }
+    utils::create_table_sign_process().unwrap_or_else(|e| {
+        eprintln!("error creating table: {}", e);
+    });
 
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem").unwrap();
     let signer_privkey = fs::read_to_string("keys/signer_privkey.pem").unwrap();
     let judge_pubkey = fs::read_to_string("keys/judge_pubkey.pem").unwrap();
-
-    sender::new(signer_pubkey.clone(), judge_pubkey.clone());
-    let blinded_digest = sender::blind("hoge".to_string());
 
     let data = Arc::new(Mutex::new(Keys {
         signer_pubkey: signer_pubkey.clone(),
@@ -47,7 +36,13 @@ async fn test() {
         .route("/ready", web::post().to(handler::ready))
         .route("/sign", web::post().to(handler::sign))).await;
 
-    let req = test::TestRequest::post().uri("/ready").set_payload(blinded_digest).to_request();
+    sender::new(signer_pubkey.clone(), judge_pubkey.clone(), 10);
+    let blinded_digest = sender::blind("hoge".to_string());
+    let blinded_digest = serde_json::from_str(&blinded_digest).expect("failed to parse json");
+    let ready_params = signer::ReadyParams { judge_pubkey: judge_pubkey.clone(), blinded_digest };
+    let payload = serde_json::to_string(&ready_params).expect("failed to convet into json");
+
+    let req = test::TestRequest::post().uri("/ready").set_payload(payload).to_request();
     let resp = test::call_service(&mut app, req).await;
 
     let bytes = test::read_body(resp).await;
@@ -59,9 +54,12 @@ async fn test() {
     let req = test::TestRequest::post().uri("/sign").set_payload(params).to_request();
     let resp = test::call_service(&mut app, req).await;
 
+    assert!(resp.status().is_success());
+
     let bytes = test::read_body(resp).await;
     let blind_signature = String::from_utf8(bytes.to_vec()).unwrap();
 
+    println!("response: {}", blind_signature);
     let signature = sender::unblind(blind_signature);
 
     let result = verifyer::verify(signature, "hoge".to_string(), signer_pubkey, judge_pubkey);

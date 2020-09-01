@@ -23,20 +23,10 @@ async fn main() -> std::io::Result<()> {
     });
 
     let conn = utils::db_connection();
-
-    if let Err(e) = conn.execute(
-        "CREATE TABLE sign_process (
-                  id              INTEGER PRIMARY KEY,
-                  phone           TEXT NOT NULL,
-                  m               TEXT NOT NULL,
-                  subset          TEXT NOT NULL,
-                  session_id      INTEGER NOT NULL,
-                  judge_pubkey    TEXT NOT NULL
-                  )",
-        params![],
-    ) {
+    utils::create_table_sign_process().unwrap_or_else(|e| {
         eprintln!("error creating table: {}", e);
-    }
+    });
+
 
     println!("server started");
 

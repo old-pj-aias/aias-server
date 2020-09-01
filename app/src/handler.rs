@@ -52,27 +52,27 @@ pub async fn sign(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> 
         .expect("failed to select");
 
     struct SignData {
-        m: String,
+        blinded_digest: String,
         subset: String,
         judge_pubkey: String
     }
 
-    let SignData {m, subset, judge_pubkey} = stmt.query_row(rusqlite::params![id], |row| {
+    let SignData {blinded_digest, subset, judge_pubkey} = stmt.query_row(rusqlite::params![id], |row| {
         Ok(SignData {
-            m: row.get(0).unwrap(),
+            blinded_digest: row.get(0).unwrap(),
             subset: row.get(1).unwrap(),
             judge_pubkey: row.get(2).unwrap()
         })
     })
     .unwrap();
 
-    let mut signer = Signer::new_from_params(signer_privkey, signer_pubkey, judge_pubkey, m, subset);
+    let mut signer = Signer::new(signer_privkey, signer_pubkey, judge_pubkey, id);
 
     let body = body.to_vec();
     let check_parameter = String::from_utf8_lossy(&body);
 
     if !signer.check(check_parameter.to_string()) {
-        return Err(utils::bad_request("invalid"))
+        return Err(utils::bad_request("invalid"));
     }
 
     let signature = signer.sign();
