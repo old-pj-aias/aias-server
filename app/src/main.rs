@@ -18,8 +18,10 @@ use std::fs;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    fs::remove_file("db.sqlite3");
-    
+    if let Err(e) = fs::remove_file("db.sqlite3") {
+        eprintln!("an error occured on removing db data: {}", e);
+    }
+
     let conn = utils::db_connection();
 
     if let Err(e) = conn.execute(

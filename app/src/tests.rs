@@ -11,10 +11,13 @@ use rusqlite::params;
 
 #[actix_rt::test]
 async fn test() {
-    fs::remove_file("db.sqlite3");
+    if let Err(e) = fs::remove_file("db.sqlite3") {
+        eprintln!("an error occured on removing db data: {}", e);
+    }
+
     let conn = utils::db_connection();
 
-    conn.execute(
+    if let Err(e) = conn.execute(
         "CREATE TABLE sign_process (
                   id              INTEGER PRIMARY KEY,
                   phone           TEXT NOT NULL,
@@ -22,7 +25,9 @@ async fn test() {
                   subset          TEXT NOT NULL
                   )",
         params![],
-    );
+    ) {
+        eprintln!("an error occured on creating table: {}", e);
+    }
 
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem").unwrap();
     let signer_privkey = fs::read_to_string("keys/signer_privkey.pem").unwrap();
