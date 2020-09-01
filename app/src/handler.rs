@@ -16,15 +16,14 @@ pub async fn hello() -> impl Responder {
 pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("ready");
 
-    let body = String::from_utf8_lossy(&body);
-
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
+
     let judge_pubkey = actix_data.lock().unwrap().judge_pubkey.clone();
 
-    let mut signer = Signer::new(signer_privkey, signer_pubkey, judge_pubkey);
+    let body = String::from_utf8_lossy(&body).to_string();
+    let mut signer = Signer::new_with_blinded_digest(signer_privkey, signer_pubkey, body);
 
-    signer.set_blinded_digest(body.to_string()).unwrap();
     let subset = signer.setup_subset();
 
     let conn = utils::db_connection();
