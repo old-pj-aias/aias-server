@@ -21,21 +21,23 @@ pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) ->
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
 
-    let body = String::from_utf8_lossy(&body).to_string();
-    let mut signer = Signer::new_with_blinded_digest(signer_privkey, signer_pubkey, body.clone(), id);
+    let ready_params_str = String::from_utf8_lossy(&body).to_string();
 
-    let digest_and_ej = serde_json::from_str(&body).expect("failed to parse json");
+    let digest_and_ej = serde_json::from_str(&ready_params_str).expect("failed to parse json");
     let ReadyParams { judge_pubkey, blinded_digest } = digest_and_ej;
 
-    let subset: String = signer.setup_subset();
+    let mut signer = Signer::new_with_blinded_digest(signer_privkey, signer_pubkey, ready_params_str.clone(), id);
+
+    let subset_str: String = signer.setup_subset();
+    let blinded_digest_str = serde_json::to_string(&blinded_digest).unwrap();
 
     let conn = utils::db_connection();
 
     conn.execute("INSERT INTO sign_process (phone, blinded_digest, subset, session_id, judge_pubkey)
                   VALUES ($1, $2, $3, $4, $5)",
-                 &["10", &body.to_string(), &subset, &"10".to_string(), &judge_pubkey]).unwrap();
+                 &[id.to_string(), blinded_digest_str, subset_str.clone(), id.to_string(), judge_pubkey]).unwrap();
 
-    Ok(subset)
+    Ok(subset_str)
 }
 
 
@@ -66,7 +68,7 @@ pub async fn sign(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> 
     })
     .unwrap();
 
-    let mut signer = Signer::new(signer_privkey, signer_pubkey, judge_pubkey, id);
+    let mut signer = Signer::new_from_params(signer_privkey, signer_pubkey, judge_pubkey, id, blinded_digest, subset);
 
     let body = body.to_vec();
     let check_parameter = String::from_utf8_lossy(&body);
