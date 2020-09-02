@@ -21,17 +21,22 @@ pub fn db_connection() -> Connection {
 pub fn create_table_sign_process() -> Result<()>{
     let conn = db_connection();
     conn.execute(
-        "CREATE TABLE sign_process (
+        "CREATE TABLE users (
                   id              INTEGER PRIMARY KEY,
-                  phone           TEXT NOT NULL,
-                  blinded_digest  TEXT NOT NULL,
-                  subset          TEXT NOT NULL,
-                  session_id      INTEGER NOT NULL,
-                  judge_pubkey    TEXT NOT NULL
+                  phone           TEXT NOT NULL
                   )",
         params![],
     )?;
 
+    conn.execute(
+        "CREATE TABLE sign_process (
+                  id              INTEGER,
+                  blinded_digest  TEXT NOT NULL,
+                  subset          TEXT NOT NULL,
+                  judge_pubkey    TEXT NOT NULL
+                  )",
+        params![],
+    )?;
     Ok(())
 }
 
@@ -46,19 +51,6 @@ pub fn bad_request<T: ToString>(data: T) -> HttpResponse {
 
 pub fn internal_server_error<T: ToString>(data: T) -> HttpResponse {
     HttpResponse::InternalServerError().body(data.to_string())
-}
-
-
-pub fn get_id(session: Session) -> Result<u32, HttpResponse> {
-    match session.get::<u32>("id")? {
-        Some(id) => {
-            eprintln!("SESSION value: {}", id);
-            Ok(id)
-        },
-        None => {
-            Err(bad_request("failed to get ID from session"))
-        }
-    }
 }
 
 pub fn send_sms(to: String, body: String) {

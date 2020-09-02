@@ -33,14 +33,14 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
     let phone_number_str = String::from_utf8_lossy(&body).to_string();
     let phone_number : PhoneReq = serde_json::from_str(&phone_number_str).map_err(utils::internal_server_error)?;
 
-    session.set("phone-number", &phone_number.phone_number)?;
+    session.set("phone-number", &phone_number_str)?;
 
     let mut rng = thread_rng();
     let secret: u32 = rng.gen_range(100000, 999999);
-    let secret = secret.to_string();
 
     session.set("secret", secret.clone())?;
 
+    let secret = secret.to_string();
     if is_debugging == "true" {
         env::set_var("TEST_SECRET_CODE", secret.clone());
         println!("secret: {}", secret);
@@ -48,6 +48,15 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
     else {
         utils::send_sms(phone_number.phone_number, secret);
     }
+
+    let conn = utils::db_connection();
+
+    conn.execute("INSERT INTO users (phone)
+                  VALUES ($1)",
+                 &[phone_number_str.clone()]).unwrap();
+
+    let id = conn.last_insert_rowid();
+    session.set("id", id)?;
 
     Ok("OK".to_string())
 }
@@ -81,8 +90,6 @@ pub async fn send_id(session: Session) -> Result<String, HttpResponse> {
 pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("ready");
 
-    let id = utils::get_id(session)?;
-
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
 
@@ -91,16 +98,18 @@ pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc
     let digest_and_ej = serde_json::from_str(&ready_params_str).expect("failed to parse json");
     let ReadyParams { judge_pubkey, blinded_digest } = digest_and_ej;
 
+    let id = session.get::<u32>("id").unwrap().unwrap();
+
     let mut signer = Signer::new_with_blinded_digest(signer_privkey, signer_pubkey, ready_params_str.clone(), id);
 
     let subset_str: String = signer.setup_subset();
-    let blinded_digest_str = serde_json::to_string(&blinded_digest).unwrap();
+    let blinded_digest_str = serde_json::to_string(&blinded_digest).unwrap().to_string();
 
     let conn = utils::db_connection();
 
-    conn.execute("INSERT INTO sign_process (phone, blinded_digest, subset, session_id, judge_pubkey)
-                  VALUES ($1, $2, $3, $4, $5)",
-                 &[id.to_string(), blinded_digest_str, subset_str.clone(), id.to_string(), judge_pubkey]).unwrap();
+    conn.execute("INSERT INTO sign_process (id, blinded_digest, subset, judge_pubkey)
+                  VALUES ($1, $2, $3, $4)",
+                 &[id.to_string(), blinded_digest_str, subset_str.clone(), judge_pubkey]).unwrap();
 
     Ok(subset_str)
 }
@@ -109,13 +118,13 @@ pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc
 pub async fn sign(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("sign");
 
-    let id = utils::get_id(session)?;
-
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
 
+    let id = session.get::<u32>("id").unwrap().unwrap();
+
     let conn = utils::db_connection();
-    let mut stmt = conn.prepare("SELECT blinded_digest, subset, judge_pubkey FROM sign_process WHERE session_id=?")
+    let mut stmt = conn.prepare("SELECT blinded_digest, subset, judge_pubkey FROM sign_process WHERE id=?")
         .expect("failed to select");
 
     struct SignData {

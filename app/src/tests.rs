@@ -20,7 +20,6 @@ async fn test() {
     }
 
     let conn = utils::db_connection();
-
     utils::create_table_sign_process().unwrap_or_else(|e| {
         eprintln!("error creating table: {}", e);
     });
