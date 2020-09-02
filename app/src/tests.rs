@@ -1,5 +1,5 @@
 use super::*;
-use actix_web::{test, web, App};
+use actix_web::{test, web, App, HttpMessage};
 use aias_core::{judge, sender, signer, verifyer};
 
 use std::fs;
@@ -21,8 +21,6 @@ async fn test() {
         eprintln!("error creating table: {}", e);
     });
 
-    let id = 10;
-
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem").unwrap();
     let signer_privkey = fs::read_to_string("keys/signer_privkey.pem").unwrap();
     let judge_pubkey = fs::read_to_string("keys/judge_pubkey.pem").unwrap();
@@ -35,9 +33,26 @@ async fn test() {
     let mut app = test::init_service(
         App::new()
         .data(data)
+        .route("/send_id", web::get().to(handler::send_id))
         .route("/ready", web::post().to(handler::ready))
         .route("/sign", web::post().to(handler::sign)))
         .await;
+
+    let req = test::TestRequest::get().uri("/send_id").to_request();
+    let resp = test::call_service(&mut app, req).await;
+
+    let cookie =
+        resp
+        .response()
+        .cookies()
+        .find(|c| c.name() == "id")
+        .expect("failed to get id from response's session");
+
+    let id: u32 =
+        cookie
+        .value()
+        .parse()
+        .expect("failed to parse session");
 
     sender::new(signer_pubkey.clone(), judge_pubkey.clone(), id);
     let blinded_digest_str = sender::blind("hoge".to_string());
@@ -50,7 +65,12 @@ async fn test() {
 
     let ready_params_str = serde_json::to_string(&ready_params).expect("failed to convet into json");
 
-    let req = test::TestRequest::post().uri("/ready").set_payload(ready_params_str.clone()).to_request();
+    let req =
+        test::TestRequest::post()
+        .uri("/ready")
+        .set_payload(ready_params_str.clone())
+        .cookie(cookie.clone())
+        .to_request();
     let resp = test::call_service(&mut app, req).await;
 
     let bytes = test::read_body(resp).await;
@@ -59,7 +79,12 @@ async fn test() {
     sender::set_subset(subset);
     let params = sender::generate_check_parameters();
 
-    let req = test::TestRequest::post().uri("/sign").set_payload(params.clone()).to_request();
+    let req =
+        test::TestRequest::post()
+        .uri("/sign")
+        .set_payload(params.clone())
+        .cookie(cookie.clone())
+        .to_request();
     let resp = test::call_service(&mut app, req).await;
 
     if !resp.status().is_success() {
