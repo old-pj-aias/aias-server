@@ -41,7 +41,7 @@ async fn test() {
             )
             .data(data.clone())
             .route("/send_sms", web::post().to(handler::send_sms))
-            .route("/verify_code", web::get().to(handler::verify_code))
+            .route("/verify_code", web::post().to(handler::verify_code))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))
@@ -84,7 +84,7 @@ async fn test() {
 
     let code_req = serde_json::to_string(&code_req).unwrap();
 
-    let req = test::TestRequest::get().uri("/verify_code").cookie(cookie.clone()).set_payload(code_req).to_request();
+    let req = test::TestRequest::post().uri("/verify_code").cookie(cookie.clone()).set_payload(code_req).to_request();
     let resp = test::call_service(&mut app, req).await;
 
     #[derive(Deserialize, Serialize)]
@@ -120,7 +120,6 @@ async fn test() {
         .set_payload(ready_params_str.clone())
         .cookie(cookie.clone())
         .to_request();
-        
     let resp = test::call_service(&mut app, req).await;
 
     let bytes = test::read_body(resp).await;
