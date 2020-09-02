@@ -58,7 +58,7 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
     let id = conn.last_insert_rowid();
     session.set("id", id)?;
 
-    Ok("OK".to_string())
+    Ok("{}".to_string())
 }
 
 pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
