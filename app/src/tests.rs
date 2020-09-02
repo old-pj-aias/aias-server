@@ -97,7 +97,7 @@ async fn test() {
 
     let IdResp { id } = serde_json::from_str(&id_resp).unwrap();
 
-    let test_id = env::var("TEST_ID").expect("Find SECRET environment variable");
+    let test_id = env::var("TEST_ID").expect("Find TEST_ID environment variable");
     let test_id : u32 = test_id.parse().unwrap();
 
     assert_eq!(id, test_id);
