@@ -17,8 +17,11 @@ pub async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world")
 }
 
-pub async fn verify_code(session: Session) -> Result<String, HttpResponse> {
-    println!("send_id");
+pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
+    println!("verify_code");
+
+    let sent_code = utils::get_code(&body)
+        .map_err(utils::bad_request)?;
 
     #[derive(Deserialize, Serialize)]
     struct IdResp {
@@ -26,8 +29,18 @@ pub async fn verify_code(session: Session) -> Result<String, HttpResponse> {
     }
 
     // access session data
-    let session_data = session.get::<u32>("id").map_err(utils::bad_request)?;
+    let session_data = session.get::<u32>("code").map_err(utils::bad_request)?;
 
+    let correct_code = session_data
+        .unwrap_or(
+            Err(utils::bad_request("failed to get session data"))?
+        );
+
+    if sent_code != correct_code {
+        return Err(utils::bad_request("invalid code"));
+    }
+
+    let session_data = session.get::<u32>("id").map_err(utils::bad_request)?;
     let id: u32 = session_data.unwrap_or({
         // generate id for each request
         let id: u32 = 10;
@@ -46,7 +59,8 @@ pub async fn verify_code(session: Session) -> Result<String, HttpResponse> {
 pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("ready");
 
-    let id = utils::get_id(session)?;
+    let id = utils::get_id(session)
+        .map_err(utils::bad_request)?;
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
