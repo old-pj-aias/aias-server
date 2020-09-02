@@ -40,6 +40,10 @@ pub fn bad_request<T: ToString>(data: T) -> HttpResponse {
     HttpResponse::BadRequest().body(data.to_string())
 }
 
+pub fn internal_server_error<T: ToString>(data: T) -> HttpResponse {
+    HttpResponse::InternalServerError().body(data.to_string())
+}
+
 
 pub fn get_id(session: Session) -> Result<u32, HttpResponse> {
     match session.get::<u32>("id")? {
