@@ -1,20 +1,55 @@
 use std::sync::{Arc, Mutex};
+use std::env;
 
 use actix_web::{HttpResponse, Responder, web};
 use actix_session::{Session, CookieSession};
 
+use rand::{thread_rng, Rng};
+
 use serde::{Deserialize, Serialize};
-
 use fair_blind_signature::CheckParameter;
-
 use aias_core::signer::{Signer, ReadyParams};
 
 use crate::utils::{self, Keys};
+
+
 
 pub async fn hello() -> impl Responder {
     println!("hello");
     
     HttpResponse::Ok().body("Hello world")
+}
+
+pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
+    println!("hello");
+
+    let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
+
+    #[derive(Deserialize, Serialize)]
+    struct PhoneReq {
+        phone_number: String,
+    }
+
+    let phone_number_str = String::from_utf8_lossy(&body).to_string();
+    let phone_number : PhoneReq = serde_json::from_str(&phone_number_str).map_err(utils::internal_server_error)?;
+
+    session.set("phone-number", &phone_number.phone_number)?;
+
+    let mut rng = thread_rng();
+    let secret: u32 = rng.gen_range(100000, 999999);
+    let secret = secret.to_string();
+
+    session.set("secret", secret.clone())?;
+
+    if is_debugging == "true" {
+        env::set_var("TEST_SECRET_CODE", secret.clone());
+        println!("secret: {}", secret);
+    } 
+    else {
+        utils::send_sms(phone_number.phone_number, secret);
+    }
+
+    Ok("OK".to_string())
 }
 
 pub async fn send_id(session: Session) -> Result<String, HttpResponse> {

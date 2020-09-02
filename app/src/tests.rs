@@ -41,6 +41,7 @@ async fn test() {
                     .secure(false)
             )
             .data(data.clone())
+            .route("/send_sms", web::get().to(handler::send_sms))
             .route("/send_id", web::get().to(handler::send_id))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
@@ -48,17 +49,30 @@ async fn test() {
     )
     .await;
 
-    let req = test::TestRequest::get().uri("/send_id").to_request();
+    #[derive(Deserialize, Serialize)]
+    struct PhoneReq {
+        phone_number: String,
+    }
+
+    let phone_num = env::var("TO").expect("Find TO environment variable");
+    let phone_req = PhoneReq { phone_number: phone_num };
+    let phone_req = serde_json::to_string(&phone_req).unwrap();
+
+    let req = test::TestRequest::get().uri("/send_sms").set_payload(phone_req).to_request();
     let resp = test::call_service(&mut app, req).await;
     let resp = resp.response();
 
-    let cookies =
+    let cookie = 
         resp
-        .cookies();
+        .cookies()
+        .find(|c| c.name() == "actix-session")
+        .expect("failed to get id from response's session");
 
-    let l: usize = cookies.map(|c| println!("cookies: {:?}", c)).fold(0, |l,_| l + 1);
-    println!("length: {}", l);
-    
+
+    let req = test::TestRequest::get().uri("/send_id").cookie(cookie.clone()).to_request();
+    let resp = test::call_service(&mut app, req).await;
+    let resp = resp.response();
+
     let cookie = 
         resp
         .cookies()
@@ -94,6 +108,7 @@ async fn test() {
         .set_payload(ready_params_str.clone())
         .cookie(cookie.clone())
         .to_request();
+        
     let resp = test::call_service(&mut app, req).await;
 
     let bytes = test::read_body(resp).await;
