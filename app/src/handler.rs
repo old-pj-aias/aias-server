@@ -21,7 +21,7 @@ pub async fn hello() -> impl Responder {
 }
 
 pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
-    println!("hello");
+    println!("send_sms");
 
     let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
 
