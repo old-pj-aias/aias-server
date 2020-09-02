@@ -40,7 +40,7 @@ async fn test() {
                     .secure(false)
             )
             .data(data.clone())
-            .route("/send_sms", web::get().to(handler::send_sms))
+            .route("/send_sms", web::post().to(handler::send_sms))
             .route("/verify_code", web::get().to(handler::verify_code))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
@@ -57,7 +57,7 @@ async fn test() {
     let phone_req = PhoneReq { phone_number: phone_num };
     let phone_req = serde_json::to_string(&phone_req).unwrap();
 
-    let req = test::TestRequest::get().uri("/send_sms").set_payload(phone_req).to_request();
+    let req = test::TestRequest::post().uri("/send_sms").set_payload(phone_req).to_request();
     let resp = test::call_service(&mut app, req).await;
 
     assert!(resp.status().is_success());

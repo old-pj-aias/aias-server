@@ -48,7 +48,7 @@ async fn main() -> std::io::Result<()> {
                     .secure(false)
             )
             .data(data.clone())
-            .route("/send_sms", web::get().to(handler::send_sms))
+            .route("/send_sms", web::post().to(handler::send_sms))
             .route("/verify_code", web::get().to(handler::verify_code))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
