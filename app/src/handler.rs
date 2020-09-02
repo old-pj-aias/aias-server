@@ -16,20 +16,24 @@ pub async fn hello() -> impl Responder {
 }
 
 
-pub async fn send_id() -> String {
+pub async fn send_id(session: Session) -> Result<String, HttpResponse> {
     println!("send_id");
 
-    // generate id for each request
-    let id = 10;
+    // access session data
+    if let Ok(None) = session.get::<u32>("id") {
+        // generate id for each request
+        let id = 10;
+        session.set("id", id).map_err(utils::bad_request)?;
+    }
 
-    id.to_string()
+    Ok("OK".to_string())
 }
 
 
-pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
+pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("ready");
 
-    let id = 10;
+    let id = utils::get_id(session)?;
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
@@ -54,10 +58,10 @@ pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) ->
 }
 
 
-pub async fn sign(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
+pub async fn sign(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("sign");
 
-    let id = 10;
+    let id = utils::get_id(session)?;
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
