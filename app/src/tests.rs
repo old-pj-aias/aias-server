@@ -40,14 +40,14 @@ async fn test() {
                     .secure(false)
             )
             .data(data.clone())
-            .route("/send_id", web::get().to(handler::send_id))
+            .route("/verify_code", web::get().to(handler::verify_code))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))
     )
     .await;
 
-    let req = test::TestRequest::get().uri("/send_id").to_request();
+    let req = test::TestRequest::get().uri("/verify_code").to_request();
     let resp = test::call_service(&mut app, req).await;
     let resp = resp.response();
 
