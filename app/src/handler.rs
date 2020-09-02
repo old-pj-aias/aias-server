@@ -1,8 +1,11 @@
+use std::sync::{Arc, Mutex};
+
 use actix_web::{HttpResponse, Responder, web};
+use actix_session::{Session, CookieSession};
+
 use fair_blind_signature::CheckParameter;
 
 use aias_core::signer::{Signer, ReadyParams};
-use std::sync::{Arc, Mutex};
 
 use crate::utils::{self, Keys};
 
@@ -10,6 +13,16 @@ pub async fn hello() -> impl Responder {
     println!("hello");
     
     HttpResponse::Ok().body("Hello world")
+}
+
+
+pub async fn send_id() -> String {
+    println!("send_id");
+
+    // generate id for each request
+    let id = 10;
+
+    id.to_string()
 }
 
 
