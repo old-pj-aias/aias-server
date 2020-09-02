@@ -2,6 +2,8 @@ use super::*;
 use actix_web::{test, web, App, HttpMessage};
 use aias_core::{judge, sender, signer, verifyer};
 
+use serde::{Deserialize, Serialize};
+
 use std::fs;
 use std::sync::{Arc, Mutex};
 use std::iter::Iterator;
@@ -48,28 +50,31 @@ async fn test() {
     let req = test::TestRequest::get().uri("/send_id").to_request();
     let resp = test::call_service(&mut app, req).await;
     let resp = resp.response();
-    println!("response: {:?}", resp);
 
     let cookies =
         resp
         .cookies();
 
-    let l = cookies.map(|c| println!("cookies: {:?}", c)).fold(0, |l,_| l + 1);
+    let l: usize = cookies.map(|c| println!("cookies: {:?}", c)).fold(0, |l,_| l + 1);
     println!("length: {}", l);
     
-    let mut cookies =
-        resp
-        .cookies();
     let cookie = 
-        cookies
+        resp
+        .cookies()
         .find(|c| c.name() == "actix-session")
         .expect("failed to get id from response's session");
 
-    let id: u32 =
-        cookie
-        .value()
-        .parse()
-        .expect("failed to parse session");
+    #[derive(Deserialize, Serialize)]
+    struct IdResp {
+        id: u32,
+    }
+
+    /*
+    // I wanted to get response's body, but I couldn't find the proper way
+    let body = response.body();
+    let IdResp { id } = serde_json::from_str(&body).unwrap();
+    */
+    let id = 10;
 
     sender::new(signer_pubkey.clone(), judge_pubkey.clone(), id);
     let blinded_digest_str = sender::blind("hoge".to_string());
