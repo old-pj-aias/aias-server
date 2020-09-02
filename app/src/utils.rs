@@ -4,6 +4,10 @@ use serde::Deserialize;
 use actix_web::{HttpResponse};
 use actix_session::{Session};
 
+use twilio::{Client, OutboundMessage};
+
+use std::env;
+
 #[derive(Debug, Default)]
 pub struct Keys {
     pub signer_pubkey: String,
@@ -54,5 +58,19 @@ pub fn get_id(session: Session) -> Result<u32, HttpResponse> {
         None => {
             Err(bad_request("failed to get ID from session"))
         }
+    }
+}
+
+pub fn send_sms(to: String, body: String) {
+    let from = env::var("FROM").expect("Find ACCOUNT_ID environment variable");
+    let app_id = env::var("ACCOUNT_ID").expect("Find ACCOUNT_ID environment variable");
+    let auth_token = env::var("AUTH_TOKEN").expect("Find AUTH_TOKEN environment variable");
+
+    let client = Client::new(&app_id, &auth_token);
+    let msg = OutboundMessage::new(&from, &to, &body);
+
+    match client.send_message(msg) {
+        Err(e) => println!("{:?}", e),
+        Ok(m)  => println!("{:?}", m),
     }
 }

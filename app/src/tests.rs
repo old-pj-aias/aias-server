@@ -11,6 +11,7 @@ use std::iter::Iterator;
 use futures::stream::poll_fn;
 use rusqlite::params;
 
+use std::env;
 
 #[actix_rt::test]
 async fn test() {
@@ -126,3 +127,11 @@ async fn test() {
 
     assert!(result);
 }
+
+// #[test]
+// fn test_call(){
+//     let to = env::var("TO").expect("Find TO environment variable");
+//     let msg = "hello".to_string();
+
+//     utils::send_sms(to.to_string(), msg);
+// }
