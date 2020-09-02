@@ -42,6 +42,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .data(data.clone())
+            .route("/send_id", web::post().to(handler::send_id))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))
