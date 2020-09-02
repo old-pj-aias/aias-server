@@ -6,6 +6,8 @@ pub mod utils;
 pub mod tests;
 
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_session::{CookieSession};
+
 use std::sync::{Arc, Mutex};
 
 use utils::{Keys};
@@ -41,7 +43,12 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(
+                CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
+                    .secure(false)
+            )
             .data(data.clone())
+            .route("/send_id", web::get().to(handler::send_id))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))

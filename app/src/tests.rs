@@ -1,9 +1,12 @@
 use super::*;
-use actix_web::{test, web, App};
+use actix_web::{test, web, App, HttpMessage};
 use aias_core::{judge, sender, signer, verifyer};
+
+use serde::{Deserialize, Serialize};
 
 use std::fs;
 use std::sync::{Arc, Mutex};
+use std::iter::Iterator;
 
 use futures::stream::poll_fn;
 use rusqlite::params;
@@ -21,8 +24,6 @@ async fn test() {
         eprintln!("error creating table: {}", e);
     });
 
-    let id = 10;
-
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem").unwrap();
     let signer_privkey = fs::read_to_string("keys/signer_privkey.pem").unwrap();
     let judge_pubkey = fs::read_to_string("keys/judge_pubkey.pem").unwrap();
@@ -34,10 +35,46 @@ async fn test() {
 
     let mut app = test::init_service(
         App::new()
-        .data(data)
-        .route("/ready", web::post().to(handler::ready))
-        .route("/sign", web::post().to(handler::sign)))
-        .await;
+            .wrap(
+                CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
+                    .secure(false)
+            )
+            .data(data.clone())
+            .route("/send_id", web::get().to(handler::send_id))
+            .route("/ready", web::post().to(handler::ready))
+            .route("/sign", web::post().to(handler::sign))
+            .route("/hello", web::get().to(handler::hello))
+    )
+    .await;
+
+    let req = test::TestRequest::get().uri("/send_id").to_request();
+    let resp = test::call_service(&mut app, req).await;
+    let resp = resp.response();
+
+    let cookies =
+        resp
+        .cookies();
+
+    let l: usize = cookies.map(|c| println!("cookies: {:?}", c)).fold(0, |l,_| l + 1);
+    println!("length: {}", l);
+    
+    let cookie = 
+        resp
+        .cookies()
+        .find(|c| c.name() == "actix-session")
+        .expect("failed to get id from response's session");
+
+    #[derive(Deserialize, Serialize)]
+    struct IdResp {
+        id: u32,
+    }
+
+    /*
+    // I wanted to get response's body, but I couldn't find the proper way
+    let body = response.body();
+    let IdResp { id } = serde_json::from_str(&body).unwrap();
+    */
+    let id = 10;
 
     sender::new(signer_pubkey.clone(), judge_pubkey.clone(), id);
     let blinded_digest_str = sender::blind("hoge".to_string());
@@ -50,7 +87,12 @@ async fn test() {
 
     let ready_params_str = serde_json::to_string(&ready_params).expect("failed to convet into json");
 
-    let req = test::TestRequest::post().uri("/ready").set_payload(ready_params_str.clone()).to_request();
+    let req =
+        test::TestRequest::post()
+        .uri("/ready")
+        .set_payload(ready_params_str.clone())
+        .cookie(cookie.clone())
+        .to_request();
     let resp = test::call_service(&mut app, req).await;
 
     let bytes = test::read_body(resp).await;
@@ -59,7 +101,12 @@ async fn test() {
     sender::set_subset(subset);
     let params = sender::generate_check_parameters();
 
-    let req = test::TestRequest::post().uri("/sign").set_payload(params.clone()).to_request();
+    let req =
+        test::TestRequest::post()
+        .uri("/sign")
+        .set_payload(params.clone())
+        .cookie(cookie.clone())
+        .to_request();
     let resp = test::call_service(&mut app, req).await;
 
     if !resp.status().is_success() {

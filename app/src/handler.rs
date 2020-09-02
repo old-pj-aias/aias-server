@@ -1,8 +1,13 @@
+use std::sync::{Arc, Mutex};
+
 use actix_web::{HttpResponse, Responder, web};
+use actix_session::{Session, CookieSession};
+
+use serde::{Deserialize, Serialize};
+
 use fair_blind_signature::CheckParameter;
 
 use aias_core::signer::{Signer, ReadyParams};
-use std::sync::{Arc, Mutex};
 
 use crate::utils::{self, Keys};
 
@@ -12,11 +17,36 @@ pub async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world")
 }
 
+pub async fn send_id(session: Session) -> Result<String, HttpResponse> {
+    println!("send_id");
 
-pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
+    #[derive(Deserialize, Serialize)]
+    struct IdResp {
+        id: u32,
+    }
+
+    // access session data
+    let session_data = session.get::<u32>("id").map_err(utils::bad_request)?;
+
+    let id: u32 = session_data.unwrap_or({
+        // generate id for each request
+        let id: u32 = 10;
+        session.set("id", id).map_err(utils::bad_request)?;
+        eprintln!("set session: {}", id);
+        id
+    });
+
+    let id_response = IdResp { id };
+    let r = serde_json::to_string(&id_response).map_err(utils::internal_server_error)?;
+
+    Ok(r)
+}
+
+
+pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("ready");
 
-    let id = 10;
+    let id = utils::get_id(session)?;
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
@@ -41,10 +71,10 @@ pub async fn ready(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) ->
 }
 
 
-pub async fn sign(body: web::Bytes, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
+pub async fn sign(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("sign");
 
-    let id = 10;
+    let id = utils::get_id(session)?;
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();

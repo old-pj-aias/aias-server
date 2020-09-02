@@ -1,6 +1,8 @@
 use rusqlite::{Connection, params, Result};
-use actix_web::{HttpResponse};
 use serde::Deserialize;
+
+use actix_web::{HttpResponse};
+use actix_session::{Session};
 
 #[derive(Debug, Default)]
 pub struct Keys {
@@ -36,4 +38,21 @@ pub fn parse_or_400<'a, T: Deserialize<'a>>(data: &'a str) -> Result<T, HttpResp
 
 pub fn bad_request<T: ToString>(data: T) -> HttpResponse {
     HttpResponse::BadRequest().body(data.to_string())
+}
+
+pub fn internal_server_error<T: ToString>(data: T) -> HttpResponse {
+    HttpResponse::InternalServerError().body(data.to_string())
+}
+
+
+pub fn get_id(session: Session) -> Result<u32, HttpResponse> {
+    match session.get::<u32>("id")? {
+        Some(id) => {
+            eprintln!("SESSION value: {}", id);
+            Ok(id)
+        },
+        None => {
+            Err(bad_request("failed to get ID from session"))
+        }
+    }
 }
