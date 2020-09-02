@@ -11,6 +11,7 @@ use std::iter::Iterator;
 use futures::stream::poll_fn;
 use rusqlite::params;
 
+use std::env;
 
 #[actix_rt::test]
 async fn test() {
@@ -19,7 +20,6 @@ async fn test() {
     }
 
     let conn = utils::db_connection();
-
     utils::create_table_sign_process().unwrap_or_else(|e| {
         eprintln!("error creating table: {}", e);
     });
@@ -40,6 +40,7 @@ async fn test() {
                     .secure(false)
             )
             .data(data.clone())
+            .route("/send_sms", web::get().to(handler::send_sms))
             .route("/verify_code", web::get().to(handler::verify_code))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
@@ -47,34 +48,60 @@ async fn test() {
     )
     .await;
 
-    let req = test::TestRequest::get().uri("/verify_code").to_request();
+    #[derive(Deserialize, Serialize)]
+    struct PhoneReq {
+        phone_number: String,
+    }
+
+    let phone_num = env::var("TO").expect("Find TO environment variable");
+    let phone_req = PhoneReq { phone_number: phone_num };
+    let phone_req = serde_json::to_string(&phone_req).unwrap();
+
+    let req = test::TestRequest::get().uri("/send_sms").set_payload(phone_req).to_request();
     let resp = test::call_service(&mut app, req).await;
+
+    assert!(resp.status().is_success());
+    
     let resp = resp.response();
 
-    let cookies =
-        resp
-        .cookies();
-
-    let l: usize = cookies.map(|c| println!("cookies: {:?}", c)).fold(0, |l,_| l + 1);
-    println!("length: {}", l);
-    
     let cookie = 
         resp
         .cookies()
         .find(|c| c.name() == "actix-session")
         .expect("failed to get id from response's session");
 
+    let code = env::var("TEST_SECRET_CODE").expect("Find SECRET environment variable");
+    let code = code.parse().unwrap();
+
+    #[derive(Deserialize, Serialize)]
+    struct CodeReq {
+        code: u32,
+    }
+
+    let code_req = CodeReq {
+        code: code
+    };
+
+    let code_req = serde_json::to_string(&code_req).unwrap();
+
+    let req = test::TestRequest::get().uri("/verify_code").cookie(cookie.clone()).set_payload(code_req).to_request();
+    let resp = test::call_service(&mut app, req).await;
+
     #[derive(Deserialize, Serialize)]
     struct IdResp {
         id: u32,
     }
 
-    /*
-    // I wanted to get response's body, but I couldn't find the proper way
-    let body = response.body();
-    let IdResp { id } = serde_json::from_str(&body).unwrap();
-    */
-    let id = 10;
+    let bytes = test::read_body(resp).await;
+    let id_resp = String::from_utf8(bytes.to_vec()).unwrap();
+
+    let IdResp { id } = serde_json::from_str(&id_resp).unwrap();
+
+    let test_id = env::var("TEST_ID").expect("Find SECRET environment variable");
+    let test_id : u32 = test_id.parse().unwrap();
+
+    assert_eq!(id, test_id);
+
 
     sender::new(signer_pubkey.clone(), judge_pubkey.clone(), id);
     let blinded_digest_str = sender::blind("hoge".to_string());
@@ -93,6 +120,7 @@ async fn test() {
         .set_payload(ready_params_str.clone())
         .cookie(cookie.clone())
         .to_request();
+        
     let resp = test::call_service(&mut app, req).await;
 
     let bytes = test::read_body(resp).await;
@@ -126,3 +154,11 @@ async fn test() {
 
     assert!(result);
 }
+
+// #[test]
+// fn test_call(){
+//     let to = env::var("TO").expect("Find TO environment variable");
+//     let msg = "hello".to_string();
+
+//     utils::send_sms(to.to_string(), msg);
+// }

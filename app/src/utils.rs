@@ -4,6 +4,10 @@ use serde::Deserialize;
 use actix_web::{HttpResponse, web};
 use actix_session::{Session};
 
+use twilio::{Client, OutboundMessage};
+
+use std::env;
+
 #[derive(Debug, Default)]
 pub struct Keys {
     pub signer_pubkey: String,
@@ -17,17 +21,22 @@ pub fn db_connection() -> Connection {
 pub fn create_table_sign_process() -> rusqlite::Result<()> {
     let conn = db_connection();
     conn.execute(
-        "CREATE TABLE sign_process (
+        "CREATE TABLE users (
                   id              INTEGER PRIMARY KEY,
-                  phone           TEXT NOT NULL,
-                  blinded_digest  TEXT NOT NULL,
-                  subset          TEXT NOT NULL,
-                  session_id      INTEGER NOT NULL,
-                  judge_pubkey    TEXT NOT NULL
+                  phone           TEXT NOT NULL
                   )",
         params![],
     )?;
 
+    conn.execute(
+        "CREATE TABLE sign_process (
+                  id              INTEGER,
+                  blinded_digest  TEXT NOT NULL,
+                  subset          TEXT NOT NULL,
+                  judge_pubkey    TEXT NOT NULL
+                  )",
+        params![],
+    )?;
     Ok(())
 }
 
@@ -44,15 +53,18 @@ pub fn internal_server_error<T: ToString>(data: T) -> HttpResponse {
     HttpResponse::InternalServerError().body(data.to_string())
 }
 
+pub fn send_sms(to: String, body: String) {
+    let from = env::var("FROM").expect("Find ACCOUNT_ID environment variable");
+    let app_id = env::var("ACCOUNT_ID").expect("Find ACCOUNT_ID environment variable");
+    let auth_token = env::var("AUTH_TOKEN").expect("Find AUTH_TOKEN environment variable");
 
-pub fn get_id(session: Session) -> Result<u32, &'static str> {
-    session.get::<u32>("id")
-        .unwrap_or(Err("failed to get session")?)
-        .map(|id| {
-            eprintln!("SESSION value: {}", id);
-            Ok(id)
-        })
-        .unwrap_or(Err("failed to get ID from session"))
+    let client = Client::new(&app_id, &auth_token);
+    let msg = OutboundMessage::new(&from, &to, &body);
+
+    match client.send_message(msg) {
+        Err(e) => println!("{:?}", e),
+        Ok(m)  => println!("{:?}", m),
+    }
 }
 
 pub fn get_code(bytes: &web::Bytes) -> Result<u32, &'static str> {

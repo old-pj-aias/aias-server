@@ -1,15 +1,18 @@
 use std::sync::{Arc, Mutex};
+use std::env;
 
 use actix_web::{HttpResponse, Responder, web};
 use actix_session::{Session, CookieSession};
 
+use rand::{thread_rng, Rng};
+
 use serde::{Deserialize, Serialize};
-
 use fair_blind_signature::CheckParameter;
-
 use aias_core::signer::{Signer, ReadyParams};
 
 use crate::utils::{self, Keys};
+
+
 
 pub async fn hello() -> impl Responder {
     println!("hello");
@@ -17,11 +20,57 @@ pub async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world")
 }
 
+pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
+    println!("hello");
+
+    let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
+
+    #[derive(Deserialize, Serialize)]
+    struct PhoneReq {
+        phone_number: String,
+    }
+
+    let phone_number_str = String::from_utf8_lossy(&body).to_string();
+    let phone_number : PhoneReq = serde_json::from_str(&phone_number_str).map_err(utils::internal_server_error)?;
+
+    session.set("phone-number", &phone_number_str)?;
+
+    let mut rng = thread_rng();
+    let secret: u32 = rng.gen_range(100000, 999999);
+
+    session.set("secret", secret.clone())?;
+
+    let secret = secret.to_string();
+    if is_debugging == "true" {
+        env::set_var("TEST_SECRET_CODE", secret.clone());
+        println!("secret: {}", secret);
+    } 
+    else {
+        utils::send_sms(phone_number.phone_number, secret);
+    }
+
+    let conn = utils::db_connection();
+
+    conn.execute("INSERT INTO users (phone)
+                  VALUES ($1)",
+                 &[phone_number_str.clone()]).unwrap();
+
+    let id = conn.last_insert_rowid();
+    session.set("id", id)?;
+
+    Ok("OK".to_string())
+}
+
 pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
     println!("verify_code");
 
-    let sent_code = utils::get_code(&body)
-        .map_err(utils::bad_request)?;
+    #[derive(Deserialize, Serialize)]
+    struct CodeReq {
+        code: u32,
+    }
+
+    let code_str = String::from_utf8_lossy(&body).to_string();
+    let code : CodeReq = serde_json::from_str(&code_str).map_err(utils::internal_server_error)?;
 
     #[derive(Deserialize, Serialize)]
     struct IdResp {
@@ -29,28 +78,23 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     }
 
     // access session data
-    let session_data = session.get::<u32>("code").map_err(utils::bad_request)?;
+    let correct_code = session.get::<u32>("secret").unwrap().unwrap();
 
-    let correct_code = session_data
-        .unwrap_or(
-            Err(utils::bad_request("failed to get session data"))?
-        );
-
-    if sent_code != correct_code {
+    if code.code != correct_code {
         return Err(utils::bad_request("invalid code"));
     }
 
-    let session_data = session.get::<u32>("id").map_err(utils::bad_request)?;
-    let id: u32 = session_data.unwrap_or({
-        // generate id for each request
-        let id: u32 = 10;
-        session.set("id", id).map_err(utils::bad_request)?;
-        eprintln!("set session: {}", id);
-        id
-    });
+    let id = session.get::<u32>("id").unwrap().unwrap();
 
     let id_response = IdResp { id };
     let r = serde_json::to_string(&id_response).map_err(utils::internal_server_error)?;
+
+    let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
+
+    if is_debugging == "true" {
+        env::set_var("TEST_ID", id.to_string());
+        println!("id: {}", id);
+    } 
 
     Ok(r)
 }
@@ -58,9 +102,6 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
 
 pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("ready");
-
-    let id = utils::get_id(session)
-        .map_err(utils::bad_request)?;
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
@@ -70,16 +111,18 @@ pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc
     let digest_and_ej = serde_json::from_str(&ready_params_str).expect("failed to parse json");
     let ReadyParams { judge_pubkey, blinded_digest } = digest_and_ej;
 
+    let id = session.get::<u32>("id").unwrap().unwrap();
+
     let mut signer = Signer::new_with_blinded_digest(signer_privkey, signer_pubkey, ready_params_str.clone(), id);
 
     let subset_str: String = signer.setup_subset();
-    let blinded_digest_str = serde_json::to_string(&blinded_digest).unwrap();
+    let blinded_digest_str = serde_json::to_string(&blinded_digest).unwrap().to_string();
 
     let conn = utils::db_connection();
 
-    conn.execute("INSERT INTO sign_process (phone, blinded_digest, subset, session_id, judge_pubkey)
-                  VALUES ($1, $2, $3, $4, $5)",
-                 &[id.to_string(), blinded_digest_str, subset_str.clone(), id.to_string(), judge_pubkey]).unwrap();
+    conn.execute("INSERT INTO sign_process (id, blinded_digest, subset, judge_pubkey)
+                  VALUES ($1, $2, $3, $4)",
+                 &[id.to_string(), blinded_digest_str, subset_str.clone(), judge_pubkey]).unwrap();
 
     Ok(subset_str)
 }
@@ -88,13 +131,13 @@ pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc
 pub async fn sign(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("sign");
 
-    let id = utils::get_id(session)?;
-
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
 
+    let id = session.get::<u32>("id").unwrap().unwrap();
+
     let conn = utils::db_connection();
-    let mut stmt = conn.prepare("SELECT blinded_digest, subset, judge_pubkey FROM sign_process WHERE session_id=?")
+    let mut stmt = conn.prepare("SELECT blinded_digest, subset, judge_pubkey FROM sign_process WHERE id=?")
         .expect("failed to select");
 
     struct SignData {
