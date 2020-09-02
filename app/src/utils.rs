@@ -1,7 +1,7 @@
-use rusqlite::{Connection, params, Result};
+use rusqlite::{Connection, params};
 use serde::Deserialize;
 
-use actix_web::{HttpResponse};
+use actix_web::{HttpResponse, web};
 use actix_session::{Session};
 
 use twilio::{Client, OutboundMessage};
@@ -18,7 +18,7 @@ pub fn db_connection() -> Connection {
     Connection::open("db.sqlite3").unwrap()
 }
 
-pub fn create_table_sign_process() -> Result<()>{
+pub fn create_table_sign_process() -> rusqlite::Result<()> {
     let conn = db_connection();
     conn.execute(
         "CREATE TABLE users (
@@ -65,4 +65,9 @@ pub fn send_sms(to: String, body: String) {
         Err(e) => println!("{:?}", e),
         Ok(m)  => println!("{:?}", m),
     }
+}
+
+pub fn get_code(bytes: &web::Bytes) -> Result<u32, &'static str> {
+    let data = String::from_utf8_lossy(&bytes).to_string();
+    serde_json::from_str(&data).map_err(|_| "failed to parse json")
 }

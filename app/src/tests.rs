@@ -41,7 +41,7 @@ async fn test() {
             )
             .data(data.clone())
             .route("/send_sms", web::get().to(handler::send_sms))
-            .route("/send_id", web::get().to(handler::send_id))
+            .route("/verify_code", web::get().to(handler::verify_code))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))
@@ -59,6 +59,9 @@ async fn test() {
 
     let req = test::TestRequest::get().uri("/send_sms").set_payload(phone_req).to_request();
     let resp = test::call_service(&mut app, req).await;
+
+    assert!(resp.status().is_success());
+    
     let resp = resp.response();
 
     let cookie = 
@@ -67,28 +70,38 @@ async fn test() {
         .find(|c| c.name() == "actix-session")
         .expect("failed to get id from response's session");
 
+    let code = env::var("TEST_SECRET_CODE").expect("Find SECRET environment variable");
+    let code = code.parse().unwrap();
 
-    let req = test::TestRequest::get().uri("/send_id").cookie(cookie.clone()).to_request();
+    #[derive(Deserialize, Serialize)]
+    struct CodeReq {
+        code: u32,
+    }
+
+    let code_req = CodeReq {
+        code: code
+    };
+
+    let code_req = serde_json::to_string(&code_req).unwrap();
+
+    let req = test::TestRequest::get().uri("/verify_code").cookie(cookie.clone()).set_payload(code_req).to_request();
     let resp = test::call_service(&mut app, req).await;
-    let resp = resp.response();
-
-    let cookie = 
-        resp
-        .cookies()
-        .find(|c| c.name() == "actix-session")
-        .expect("failed to get id from response's session");
 
     #[derive(Deserialize, Serialize)]
     struct IdResp {
         id: u32,
     }
 
-    /*
-    // I wanted to get response's body, but I couldn't find the proper way
-    let body = response.body();
-    let IdResp { id } = serde_json::from_str(&body).unwrap();
-    */
-    let id = 10;
+    let bytes = test::read_body(resp).await;
+    let id_resp = String::from_utf8(bytes.to_vec()).unwrap();
+
+    let IdResp { id } = serde_json::from_str(&id_resp).unwrap();
+
+    let test_id = env::var("TEST_ID").expect("Find SECRET environment variable");
+    let test_id : u32 = test_id.parse().unwrap();
+
+    assert_eq!(id, test_id);
+
 
     sender::new(signer_pubkey.clone(), judge_pubkey.clone(), id);
     let blinded_digest_str = sender::blind("hoge".to_string());

@@ -61,8 +61,16 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
     Ok("OK".to_string())
 }
 
-pub async fn send_id(session: Session) -> Result<String, HttpResponse> {
-    println!("send_id");
+pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
+    println!("verify_code");
+
+    #[derive(Deserialize, Serialize)]
+    struct CodeReq {
+        code: u32,
+    }
+
+    let code_str = String::from_utf8_lossy(&body).to_string();
+    let code : CodeReq = serde_json::from_str(&code_str).map_err(utils::internal_server_error)?;
 
     #[derive(Deserialize, Serialize)]
     struct IdResp {
@@ -70,18 +78,23 @@ pub async fn send_id(session: Session) -> Result<String, HttpResponse> {
     }
 
     // access session data
-    let session_data = session.get::<u32>("id").map_err(utils::bad_request)?;
+    let correct_code = session.get::<u32>("secret").unwrap().unwrap();
 
-    let id: u32 = session_data.unwrap_or({
-        // generate id for each request
-        let id: u32 = 10;
-        session.set("id", id).map_err(utils::bad_request)?;
-        eprintln!("set session: {}", id);
-        id
-    });
+    if code.code != correct_code {
+        return Err(utils::bad_request("invalid code"));
+    }
+
+    let id = session.get::<u32>("id").unwrap().unwrap();
 
     let id_response = IdResp { id };
     let r = serde_json::to_string(&id_response).map_err(utils::internal_server_error)?;
+
+    let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
+
+    if is_debugging == "true" {
+        env::set_var("TEST_ID", id.to_string());
+        println!("id: {}", id);
+    } 
 
     Ok(r)
 }
