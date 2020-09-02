@@ -33,11 +33,17 @@ async fn test() {
 
     let mut app = test::init_service(
         App::new()
-        .data(data)
-        .route("/send_id", web::get().to(handler::send_id))
-        .route("/ready", web::post().to(handler::ready))
-        .route("/sign", web::post().to(handler::sign)))
-        .await;
+            .wrap(
+                CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
+                    .secure(false)
+            )
+            .data(data.clone())
+            .route("/send_id", web::get().to(handler::send_id))
+            .route("/ready", web::post().to(handler::ready))
+            .route("/sign", web::post().to(handler::sign))
+            .route("/hello", web::get().to(handler::hello))
+    )
+    .await;
 
     let req = test::TestRequest::get().uri("/send_id").to_request();
     let resp = test::call_service(&mut app, req).await;
