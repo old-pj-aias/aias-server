@@ -24,6 +24,7 @@ pub async fn send_id(session: Session) -> Result<String, HttpResponse> {
         // generate id for each request
         let id = 10;
         session.set("id", id).map_err(utils::bad_request)?;
+        eprintln!("set session: {}", id);
     }
 
     Ok("OK".to_string())
