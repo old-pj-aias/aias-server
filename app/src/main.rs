@@ -18,21 +18,15 @@ use std::fs;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    fs::remove_file("db.sqlite3");
-    
-    let conn = utils::db_connection();
+    fs::remove_file("db.sqlite3").unwrap_or_else(|e| {
+        eprintln!("an error occured on removing db data: {}", e);
+    });
 
-    if let Err(e) = conn.execute(
-        "CREATE TABLE sign_process (
-                  id              INTEGER PRIMARY KEY,
-                  phone           TEXT NOT NULL,
-                  m               TEXT NOT NULL,
-                  subset          TEXT NOT NULL
-                  )",
-        params![],
-    ) {
+    let conn = utils::db_connection();
+    utils::create_table_sign_process().unwrap_or_else(|e| {
         eprintln!("error creating table: {}", e);
-    }
+    });
+
 
     println!("server started");
 
@@ -42,8 +36,7 @@ async fn main() -> std::io::Result<()> {
 
     let data = Arc::new(Mutex::new(Keys {
         signer_pubkey: signer_pubkey,
-        signer_privkey: signer_privkey,
-        judge_pubkey: judge_pubkey
+        signer_privkey: signer_privkey
     }));
 
     HttpServer::new(move || {
