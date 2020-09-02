@@ -17,7 +17,7 @@ pub async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world")
 }
 
-pub async fn send_id(session: Session) -> Result<String, HttpResponse> {
+pub async fn verify_code(session: Session) -> Result<String, HttpResponse> {
     println!("send_id");
 
     #[derive(Deserialize, Serialize)]
