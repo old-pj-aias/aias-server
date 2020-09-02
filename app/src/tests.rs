@@ -4,6 +4,7 @@ use aias_core::{judge, sender, signer, verifyer};
 
 use std::fs;
 use std::sync::{Arc, Mutex};
+use std::iter::Iterator;
 
 use futures::stream::poll_fn;
 use rusqlite::params;
@@ -40,12 +41,22 @@ async fn test() {
 
     let req = test::TestRequest::get().uri("/send_id").to_request();
     let resp = test::call_service(&mut app, req).await;
+    let resp = resp.response();
+    println!("response: {:?}", resp);
 
-    let cookie =
+    let cookies =
         resp
-        .response()
-        .cookies()
-        .find(|c| c.name() == "id")
+        .cookies();
+
+    let l = cookies.map(|c| println!("cookies: {:?}", c)).fold(0, |l,_| l + 1);
+    println!("length: {}", l);
+    
+    let mut cookies =
+        resp
+        .cookies();
+    let cookie = 
+        cookies
+        .find(|c| c.name() == "actix-session")
         .expect("failed to get id from response's session");
 
     let id: u32 =
