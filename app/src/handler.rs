@@ -5,6 +5,7 @@ use actix_web::{HttpResponse, Responder, web, HttpRequest};
 use actix_session::{Session, CookieSession};
 
 use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 
 use serde::{Deserialize, Serialize};
 use fair_blind_signature::CheckParameter;
@@ -25,6 +26,11 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
 
     let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGING environment variable");
 
+    let token: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .collect();
+    
     #[derive(Deserialize, Serialize)]
     struct PhoneReq {
         phone_number: String,
@@ -41,13 +47,13 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
 
     let conn = utils::db_connection();
 
-    conn.execute("INSERT INTO users (phone)
-                  VALUES ($1)",
-                 &[phone_number_str.clone()]).unwrap();
+    conn.execute("INSERT INTO users (phone, token)
+                  VALUES ($1, $2)",
+                 &[phone_number_str.clone(), token]).unwrap();
 
     let id = conn.last_insert_rowid();
 
-    conn.execute("INSERT INTO credentials (id, secret_code)
+    conn.execute("INSERT INTO sms_codes (id, secret_code)
                 VALUES ($1, $2)",
                 &[id.clone().to_string(), secret.clone()]).unwrap();
 
@@ -94,7 +100,7 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
 
     // access session data
     let conn = utils::db_connection();
-    let mut stmt = conn.prepare("SELECT secret_code FROM credentials WHERE id=?")
+    let mut stmt = conn.prepare("SELECT secret_code FROM sms_codes WHERE id=?")
         .expect("failed to select");
 
     struct CorrectCode {
