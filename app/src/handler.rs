@@ -91,11 +91,6 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     let code_str = String::from_utf8_lossy(&body).to_string();
     let code : CodeReq = serde_json::from_str(&code_str).map_err(utils::internal_server_error)?;
 
-    #[derive(Deserialize, Serialize)]
-    struct IdResp {
-        id: u32,
-    }
-
     let id = session.get::<u32>("id").unwrap().unwrap();
 
     // access session data
@@ -119,17 +114,39 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
         return Err(utils::bad_request("invalid code"));
     }
 
-    let id_response = IdResp { id };
-    let r = serde_json::to_string(&id_response).unwrap();
+    #[derive(Deserialize, Serialize)]
+    struct TokenAndId {
+        id: u32,
+        token: String
+    }
+
+    let mut stmt = conn.prepare("SELECT token FROM users WHERE id=?")
+        .expect("failed to select");
+
+
+    let TokenAndId {id, token} = stmt.query_row(rusqlite::params![id], |row| {
+        Ok(TokenAndId {
+            id: id,
+            token: row.get(0).unwrap(),
+        })
+    })
+    .unwrap();
+
+    let cloned_token = token.clone();
+    let resp = TokenAndId { id: id, token: cloned_token };
+    let resp = serde_json::to_string(&resp).unwrap();
 
     let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
 
     if is_debugging == "true" {
+        env::set_var("TEST_TOKEN", token.clone());
+        println!("token: {}", token);
+        
         env::set_var("TEST_ID", id.to_string());
         println!("id: {}", id);
     } 
 
-    Ok(r)
+    Ok(resp)
 }
 
 

@@ -88,20 +88,24 @@ async fn test() {
     let resp = test::call_service(&mut app, req).await;
 
     #[derive(Deserialize, Serialize)]
-    struct IdResp {
+    struct TokenAndId {
         id: u32,
+        token: String
     }
 
     let bytes = test::read_body(resp).await;
-    let id_resp = String::from_utf8(bytes.to_vec()).unwrap();
+    let token_resp = String::from_utf8(bytes.to_vec()).unwrap();
 
-    let IdResp { id } = serde_json::from_str(&id_resp).unwrap();
+    let TokenAndId { id, token } = serde_json::from_str(&token_resp).unwrap();
+
+    let test_token = env::var("TEST_TOKEN").expect("Find TEST_ID environment variable");
+
+    assert_eq!(token, test_token);
 
     let test_id = env::var("TEST_ID").expect("Find TEST_ID environment variable");
     let test_id : u32 = test_id.parse().unwrap();
 
     assert_eq!(id, test_id);
-
 
     sender::new(signer_pubkey.clone(), judge_pubkey.clone(), id);
     let blinded_digest_str = sender::blind("hoge".to_string());
