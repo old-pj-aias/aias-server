@@ -68,6 +68,15 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
 pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
     println!("verify_code");
 
+    if let Some(count) = session.get::<i32>("counter")? {
+        if count >= 5 {
+            return Err(utils::bad_request("too many login failures"));
+        }
+        session.set("counter", count + 1)?;
+    } else {
+        session.set("counter", 1)?;
+    }
+
     #[derive(Deserialize, Serialize)]
     struct CodeReq {
         code: u32,
