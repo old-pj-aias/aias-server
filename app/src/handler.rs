@@ -252,6 +252,8 @@ pub async fn sign(body: web::Bytes, session: Session, actix_data: web::Data<Arc<
         return Err(utils::bad_request("invalid"));
     }
 
+    conn.execute("DELETE FROM sign_process WHERE id=?", &[id]).unwrap();
+
     let signature = signer.sign();
 
     Ok(signature)
