@@ -50,6 +50,7 @@ async fn main() -> std::io::Result<()> {
             .data(data.clone())
             .route("/send_sms", web::post().to(handler::send_sms))
             .route("/verify_code", web::post().to(handler::verify_code))
+            .route("/auth", web::post().to(handler::auth))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))

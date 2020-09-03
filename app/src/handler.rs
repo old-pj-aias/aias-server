@@ -149,9 +149,42 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     Ok(resp)
 }
 
+pub async fn auth(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
+    let conn = utils::db_connection();
+
+     #[derive(Deserialize, Serialize)]
+    struct TokenReq {
+        token: String,
+    }
+
+    let token_str = String::from_utf8_lossy(&body).to_string();
+    let token : TokenReq = serde_json::from_str(&token_str).map_err(utils::internal_server_error)?;
+    
+    #[derive(Deserialize, Serialize)]
+    struct ID {
+        id: u32,
+    }
+
+    let mut stmt = conn.prepare("SELECT id FROM users WHERE token=?")
+        .expect("failed to select");
+
+
+    let ID { id } = stmt.query_row(rusqlite::params![token.token], |row| {
+        Ok(ID {
+            id: row.get(0).unwrap(),
+        })
+    })
+    .unwrap();
+
+    session.set("id", id)?;
+
+    return Ok("OK".to_string());
+}
+
 
 pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("ready");
+
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
@@ -167,8 +200,8 @@ pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc
 
     let subset_str: String = signer.setup_subset();
     let blinded_digest_str = serde_json::to_string(&blinded_digest).unwrap().to_string();
-    let conn = utils::db_connection();
 
+    let conn = utils::db_connection();
     conn.execute("INSERT INTO sign_process (id, blinded_digest, subset, judge_pubkey)
                   VALUES ($1, $2, $3, $4)",
                  &[id.to_string(), blinded_digest_str, subset_str.clone(), judge_pubkey]).unwrap();
