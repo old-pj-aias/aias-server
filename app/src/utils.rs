@@ -37,6 +37,15 @@ pub fn create_table_sign_process() -> rusqlite::Result<()> {
                   )",
         params![],
     )?;
+
+    conn.execute(
+        "CREATE TABLE credentials (
+                  id              INTEGER,
+                  secret_code     INTEGER
+                  )",
+        params![],
+    )?;
+
     Ok(())
 }
 
