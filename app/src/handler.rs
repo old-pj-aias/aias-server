@@ -115,8 +115,7 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     }
 
     #[derive(Deserialize, Serialize)]
-    struct TokenAndId {
-        id: u32,
+    struct TokenResp {
         token: String
     }
 
@@ -124,16 +123,15 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
         .expect("failed to select");
 
 
-    let TokenAndId {id, token} = stmt.query_row(rusqlite::params![id], |row| {
-        Ok(TokenAndId {
-            id: id,
+    let TokenResp {token} = stmt.query_row(rusqlite::params![id], |row| {
+        Ok(TokenResp {
             token: row.get(0).unwrap(),
         })
     })
     .unwrap();
 
     let cloned_token = token.clone();
-    let resp = TokenAndId { id: id, token: cloned_token };
+    let resp = TokenResp { token: cloned_token };
     let resp = serde_json::to_string(&resp).unwrap();
 
     let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
@@ -141,10 +139,7 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     if is_debugging == "true" {
         env::set_var("TEST_TOKEN", token.clone());
         println!("token: {}", token);
-        
-        env::set_var("TEST_ID", id.to_string());
-        println!("id: {}", id);
-    } 
+    }
 
     Ok(resp)
 }
@@ -161,7 +156,7 @@ pub async fn auth(body: web::Bytes, session: Session) -> Result<String, HttpResp
     let token : TokenReq = serde_json::from_str(&token_str).map_err(utils::internal_server_error)?;
     
     #[derive(Deserialize, Serialize)]
-    struct ID {
+    struct IdResp {
         id: u32,
     }
 
@@ -169,8 +164,8 @@ pub async fn auth(body: web::Bytes, session: Session) -> Result<String, HttpResp
         .expect("failed to select");
 
 
-    let ID { id } = stmt.query_row(rusqlite::params![token.token], |row| {
-        Ok(ID {
+    let IdResp { id } = stmt.query_row(rusqlite::params![token.token], |row| {
+        Ok(IdResp {
             id: row.get(0).unwrap(),
         })
     })
@@ -178,7 +173,18 @@ pub async fn auth(body: web::Bytes, session: Session) -> Result<String, HttpResp
 
     session.set("id", id)?;
 
-    return Ok("OK".to_string());
+    let cloned_id = id.clone();
+    let resp = IdResp { id: cloned_id };
+    let resp = serde_json::to_string(&resp).unwrap();
+
+    let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
+
+    if is_debugging == "true" {
+        env::set_var("TEST_ID", id.to_string());
+        println!("id: {}", id);
+    }
+
+    Ok(resp)
 }
 
 
