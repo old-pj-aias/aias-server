@@ -42,6 +42,7 @@ async fn test() {
             .data(data.clone())
             .route("/send_sms", web::post().to(handler::send_sms))
             .route("/verify_code", web::post().to(handler::verify_code))
+            .route("/auth", web::post().to(handler::auth))
             .route("/ready", web::post().to(handler::ready))
             .route("/sign", web::post().to(handler::sign))
             .route("/hello", web::get().to(handler::hello))
@@ -88,14 +89,57 @@ async fn test() {
     let resp = test::call_service(&mut app, req).await;
 
     #[derive(Deserialize, Serialize)]
+    struct TokenResp {
+        token: String
+    }
+
+    let bytes = test::read_body(resp).await;
+    let token_resp = String::from_utf8(bytes.to_vec()).unwrap();
+
+    let TokenResp { token } = serde_json::from_str(&token_resp).unwrap();
+    let test_token = env::var("TEST_TOKEN").expect("Find TEST_ID environment variable");
+
+    assert_eq!(token, test_token);
+
+
+     #[derive(Deserialize, Serialize, Clone)]
+    struct TokenReq {
+        token: String,
+    }
+
+    #[derive(Deserialize, Serialize)]
     struct IdResp {
         id: u32,
     }
+
+    let token_req = TokenReq { token: token };
+    let token_req = serde_json::to_string(&token_req).unwrap();
+
+    // todo: fix
+    let req = test::TestRequest::post().uri("/auth").set_payload(token_req.clone()).to_request();
+    let resp = test::call_service(&mut app, req).await;
+
+    assert!(resp.status().is_success());
 
     let bytes = test::read_body(resp).await;
     let id_resp = String::from_utf8(bytes.to_vec()).unwrap();
 
     let IdResp { id } = serde_json::from_str(&id_resp).unwrap();
+
+    // todo: fix
+    let req = test::TestRequest::post().uri("/auth").set_payload(token_req).to_request();
+    let resp = test::call_service(&mut app, req).await;
+
+    assert!(resp.status().is_success());
+
+    let resp = resp.response();
+    
+    let cookie = 
+        resp
+        .cookies()
+        .find(|c| c.name() == "actix-session")
+        .expect("failed to get id from response's session");
+
 
     let test_id = env::var("TEST_ID").expect("Find TEST_ID environment variable");
     let test_id : u32 = test_id.parse().unwrap();

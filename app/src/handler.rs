@@ -5,6 +5,7 @@ use actix_web::{HttpResponse, Responder, web, HttpRequest};
 use actix_session::{Session, CookieSession};
 
 use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 
 use serde::{Deserialize, Serialize};
 use fair_blind_signature::CheckParameter;
@@ -25,6 +26,11 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
 
     let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGING environment variable");
 
+    let token: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .collect();
+    
     #[derive(Deserialize, Serialize)]
     struct PhoneReq {
         phone_number: String,
@@ -41,13 +47,13 @@ pub async fn send_sms(body: web::Bytes, session: Session) -> Result<String, Http
 
     let conn = utils::db_connection();
 
-    conn.execute("INSERT INTO users (phone)
-                  VALUES ($1)",
-                 &[phone_number_str.clone()]).unwrap();
+    conn.execute("INSERT INTO users (phone, token)
+                  VALUES ($1, $2)",
+                 &[phone_number_str.clone(), token]).unwrap();
 
     let id = conn.last_insert_rowid();
 
-    conn.execute("INSERT INTO credentials (id, secret_code)
+    conn.execute("INSERT INTO sms_codes (id, secret_code)
                 VALUES ($1, $2)",
                 &[id.clone().to_string(), secret.clone()]).unwrap();
 
@@ -85,16 +91,11 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     let code_str = String::from_utf8_lossy(&body).to_string();
     let code : CodeReq = serde_json::from_str(&code_str).map_err(utils::internal_server_error)?;
 
-    #[derive(Deserialize, Serialize)]
-    struct IdResp {
-        id: u32,
-    }
-
     let id = session.get::<u32>("id").unwrap().unwrap();
 
     // access session data
     let conn = utils::db_connection();
-    let mut stmt = conn.prepare("SELECT secret_code FROM credentials WHERE id=?")
+    let mut stmt = conn.prepare("SELECT secret_code FROM sms_codes WHERE id=?")
         .expect("failed to select");
 
     struct CorrectCode {
@@ -113,22 +114,83 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
         return Err(utils::bad_request("invalid code"));
     }
 
-    let id_response = IdResp { id };
-    let r = serde_json::to_string(&id_response).unwrap();
+    #[derive(Deserialize, Serialize)]
+    struct TokenResp {
+        token: String
+    }
+
+    let mut stmt = conn.prepare("SELECT token FROM users WHERE id=?")
+        .expect("failed to select");
+
+
+    let TokenResp {token} = stmt.query_row(rusqlite::params![id], |row| {
+        Ok(TokenResp {
+            token: row.get(0).unwrap(),
+        })
+    })
+    .unwrap();
+
+    let cloned_token = token.clone();
+    let resp = TokenResp { token: cloned_token };
+    let resp = serde_json::to_string(&resp).unwrap();
+
+    let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
+
+    if is_debugging == "true" {
+        env::set_var("TEST_TOKEN", token.clone());
+        println!("token: {}", token);
+    }
+
+    Ok(resp)
+}
+
+pub async fn auth(body: web::Bytes, session: Session) -> Result<String, HttpResponse> {
+    let conn = utils::db_connection();
+
+     #[derive(Deserialize, Serialize)]
+    struct TokenReq {
+        token: String,
+    }
+
+    let token_str = String::from_utf8_lossy(&body).to_string();
+    let token : TokenReq = serde_json::from_str(&token_str).map_err(utils::internal_server_error)?;
+    
+    #[derive(Deserialize, Serialize)]
+    struct IdResp {
+        id: u32,
+    }
+
+    let mut stmt = conn.prepare("SELECT id FROM users WHERE token=?")
+        .expect("failed to select");
+
+
+    let IdResp { id } = stmt.query_row(rusqlite::params![token.token], |row| {
+        Ok(IdResp {
+            id: row.get(0).unwrap(),
+        })
+    })
+    .unwrap();
+
+    session.set("id", id)?;
+
+    let cloned_id = id.clone();
+    let resp = IdResp { id: cloned_id };
+    let resp = serde_json::to_string(&resp).unwrap();
 
     let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
 
     if is_debugging == "true" {
         env::set_var("TEST_ID", id.to_string());
         println!("id: {}", id);
-    } 
+    }
 
-    Ok(r)
+    Ok(resp)
 }
 
 
 pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc<Mutex<Keys>>>) -> Result<String, HttpResponse> {
     println!("ready");
+
 
     let signer_privkey = actix_data.lock().unwrap().signer_privkey.clone();
     let signer_pubkey = actix_data.lock().unwrap().signer_pubkey.clone();
@@ -144,8 +206,8 @@ pub async fn ready(body: web::Bytes, session: Session, actix_data: web::Data<Arc
 
     let subset_str: String = signer.setup_subset();
     let blinded_digest_str = serde_json::to_string(&blinded_digest).unwrap().to_string();
-    let conn = utils::db_connection();
 
+    let conn = utils::db_connection();
     conn.execute("INSERT INTO sign_process (id, blinded_digest, subset, judge_pubkey)
                   VALUES ($1, $2, $3, $4)",
                  &[id.to_string(), blinded_digest_str, subset_str.clone(), judge_pubkey]).unwrap();

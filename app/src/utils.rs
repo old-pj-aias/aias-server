@@ -23,7 +23,8 @@ pub fn create_table_sign_process() -> rusqlite::Result<()> {
     conn.execute(
         "CREATE TABLE users (
                   id              INTEGER PRIMARY KEY,
-                  phone           TEXT NOT NULL
+                  phone           TEXT NOT NULL,
+                  token           TEXT NOT NULL
                   )",
         params![],
     )?;
@@ -39,7 +40,7 @@ pub fn create_table_sign_process() -> rusqlite::Result<()> {
     )?;
 
     conn.execute(
-        "CREATE TABLE credentials (
+        "CREATE TABLE sms_codes (
                   id              INTEGER,
                   secret_code     INTEGER
                   )",
