@@ -1,8 +1,8 @@
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use serde::Deserialize;
 
-use actix_web::{HttpResponse, web};
-use actix_session::{Session};
+use actix_session::Session;
+use actix_web::{web, HttpResponse};
 
 use twilio::{Client, OutboundMessage};
 
@@ -11,7 +11,7 @@ use std::env;
 #[derive(Debug, Default)]
 pub struct Keys {
     pub signer_pubkey: String,
-    pub signer_privkey: String
+    pub signer_privkey: String,
 }
 
 pub fn db_connection() -> Connection {
@@ -51,8 +51,7 @@ pub fn create_table_sign_process() -> rusqlite::Result<()> {
 }
 
 pub fn parse_or_400<'a, T: Deserialize<'a>>(data: &'a str) -> Result<T, HttpResponse> {
-    serde_json::from_slice(&data.as_bytes())
-        .map_err(bad_request)
+    serde_json::from_slice(&data.as_bytes()).map_err(bad_request)
 }
 
 pub fn bad_request<T: ToString>(data: T) -> HttpResponse {
@@ -73,7 +72,7 @@ pub fn send_sms(to: String, body: String) {
 
     match client.send_message(msg) {
         Err(e) => println!("{:?}", e),
-        Ok(m)  => println!("{:?}", m),
+        Ok(m) => println!("{:?}", m),
     }
 }
 

@@ -2,21 +2,19 @@
 #![allow(unused_variables)]
 
 pub mod handler;
-pub mod utils;
 pub mod tests;
+pub mod utils;
 
+use actix_session::CookieSession;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use actix_session::{CookieSession};
 
 use std::sync::{Arc, Mutex};
 
-use utils::{Keys};
+use utils::Keys;
 
 use rusqlite::params;
 
-
 use std::fs;
-
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -29,7 +27,6 @@ async fn main() -> std::io::Result<()> {
         eprintln!("error creating table: {}", e);
     });
 
-
     println!("server started");
 
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem")?;
@@ -38,14 +35,14 @@ async fn main() -> std::io::Result<()> {
 
     let data = Arc::new(Mutex::new(Keys {
         signer_pubkey: signer_pubkey,
-        signer_privkey: signer_privkey
+        signer_privkey: signer_privkey,
     }));
 
     HttpServer::new(move || {
         App::new()
             .wrap(
                 CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
-                    .secure(false)
+                    .secure(false),
             )
             .data(data.clone())
             .route("/send_sms", web::post().to(handler::send_sms))
