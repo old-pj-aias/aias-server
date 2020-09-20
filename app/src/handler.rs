@@ -91,13 +91,15 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     let code_str = String::from_utf8_lossy(&body).to_string();
     let code: CodeReq = serde_json::from_str(&code_str).map_err(utils::internal_server_error)?;
 
-    let id = session.get::<u32>("id").unwrap().unwrap();
-
     // access session data
+    let id = session.get::<u32>("id")
+        .map_err(|_| utils::bad_request("invalid session data"))?
+        .ok_or(utils::bad_request("failed to get session data"))?;
+
     let conn = utils::db_connection();
     let mut stmt = conn
         .prepare("SELECT secret_code FROM sms_codes WHERE id=?")
-        .expect("failed to select");
+        .map_err(utils::internal_server_error)?;
 
     struct CorrectCode {
         correct_code: u32,
@@ -122,7 +124,7 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
 
     let mut stmt = conn
         .prepare("SELECT token FROM users WHERE id=?")
-        .expect("failed to select");
+        .map_err(utils::internal_server_error)?;
 
     let TokenResp { token } = stmt
         .query_row(rusqlite::params![id], |row| {
@@ -138,7 +140,7 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     };
     let resp = serde_json::to_string(&resp).unwrap();
 
-    let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGIN environment variable");
+    let is_debugging = env::var("DEBUGGING").expect("Find DEBUGGING environment variable");
 
     if is_debugging == "true" {
         env::set_var("TEST_TOKEN", token.clone());

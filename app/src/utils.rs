@@ -55,11 +55,15 @@ pub fn parse_or_400<'a, T: Deserialize<'a>>(data: &'a str) -> Result<T, HttpResp
 }
 
 pub fn bad_request<T: ToString>(data: T) -> HttpResponse {
-    HttpResponse::BadRequest().body(data.to_string())
+    let s = data.to_string();
+    eprintln!("bad request: {}", s);
+    HttpResponse::BadRequest().body(s)
 }
 
 pub fn internal_server_error<T: ToString>(data: T) -> HttpResponse {
-    HttpResponse::InternalServerError().body(data.to_string())
+    let s = data.to_string();
+    eprintln!("internal server error: {}", s);
+    HttpResponse::InternalServerError().body(s)
 }
 
 pub fn send_sms(to: String, body: String) {
