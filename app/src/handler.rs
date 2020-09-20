@@ -1,15 +1,14 @@
 use std::env;
 use std::sync::{Arc, Mutex};
 
-use actix_session::{CookieSession, Session};
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use actix_session::Session;
+use actix_web::{web, HttpResponse, Responder};
+use serde::{Deserialize, Serialize};
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
 use aias_core::signer::{ReadyParams, Signer};
-use fair_blind_signature::CheckParameter;
-use serde::{Deserialize, Serialize};
 
 use crate::utils::{self, Keys};
 
@@ -92,7 +91,8 @@ pub async fn verify_code(body: web::Bytes, session: Session) -> Result<String, H
     let code: CodeReq = serde_json::from_str(&code_str).map_err(utils::internal_server_error)?;
 
     // access session data
-    let id = session.get::<u32>("id")
+    let id = session
+        .get::<u32>("id")
         .map_err(|_| utils::bad_request("invalid session data"))?
         .ok_or(utils::bad_request("failed to get session data"))?;
 

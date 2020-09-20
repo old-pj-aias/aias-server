@@ -1,15 +1,12 @@
 use super::*;
-use actix_web::{test, web, App, HttpMessage};
-use aias_core::{judge, sender, signer, verifyer};
+use actix_web::{test, web, App};
+use aias_core::{sender, signer, verifyer};
 
 use serde::{Deserialize, Serialize};
 
 use std::fs;
 use std::iter::Iterator;
 use std::sync::{Arc, Mutex};
-
-use futures::stream::poll_fn;
-use rusqlite::params;
 
 use std::env;
 
@@ -19,7 +16,6 @@ async fn test() {
         eprintln!("an error occured on removing db data: {}", e);
     }
 
-    let conn = utils::db_connection();
     utils::create_table_sign_process().unwrap_or_else(|e| {
         eprintln!("error creating table: {}", e);
     });

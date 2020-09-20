@@ -1,7 +1,6 @@
 use rusqlite::{params, Connection};
 use serde::Deserialize;
 
-use actix_session::Session;
 use actix_web::{web, HttpResponse};
 
 use twilio::{Client, OutboundMessage};

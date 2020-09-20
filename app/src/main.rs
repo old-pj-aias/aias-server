@@ -1,18 +1,15 @@
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-
 pub mod handler;
-pub mod tests;
 pub mod utils;
 
+#[cfg(test)]
+mod tests;
+
 use actix_session::CookieSession;
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{web, App, HttpServer};
 
 use std::sync::{Arc, Mutex};
 
 use utils::Keys;
-
-use rusqlite::params;
 
 use std::fs;
 
@@ -22,7 +19,6 @@ async fn main() -> std::io::Result<()> {
         eprintln!("an error occured on removing db data: {}", e);
     });
 
-    let conn = utils::db_connection();
     utils::create_table_sign_process().unwrap_or_else(|e| {
         eprintln!("error creating table: {}", e);
     });
@@ -31,7 +27,6 @@ async fn main() -> std::io::Result<()> {
 
     let signer_pubkey = fs::read_to_string("keys/signer_pubkey.pem")?;
     let signer_privkey = fs::read_to_string("keys/signer_privkey.pem")?;
-    let judge_pubkey = fs::read_to_string("keys/judge_pubkey.pem")?;
 
     let data = Arc::new(Mutex::new(Keys {
         signer_pubkey: signer_pubkey,
