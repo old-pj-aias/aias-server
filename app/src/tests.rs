@@ -192,7 +192,7 @@ async fn test() {
             ready_params_str,
             id,
         );
-        assert!(signer.check(params));
+        assert_eq!(signer.check(params), Ok(()));
     }
 
     let bytes = test::read_body(resp).await;
@@ -203,13 +203,5 @@ async fn test() {
 
     let result = verifyer::verify(signature, "hoge".to_string(), signer_pubkey, judge_pubkey);
 
-    assert!(result);
+    assert_eq!(result, Ok(()));
 }
-
-// #[test]
-// fn test_call(){
-//     let to = env::var("TO").expect("Find TO environment variable");
-//     let msg = "hello".to_string();
-
-//     utils::send_sms(to.to_string(), msg);
-// }

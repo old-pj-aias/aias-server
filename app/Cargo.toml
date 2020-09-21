@@ -5,8 +5,8 @@ authors = ["akakou <akakou571@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-fair-blind-signature = { git = "https://github.com/project-aias/fair-blind-signature", rev = "2565e6d" }
-aias-core = { path = "./core/core" }
+fair-blind-signature = { git = "https://github.com/project-aias/fair-blind-signature", rev = "161617a" }
+aias-core = { git = "https://github.com/project-aias/aias-core.git", rev = "6b73176" }
 actix-web = "2.0"
 actix-rt = "1.0"
 rusqlite = "0.24.0"
@@ -17,3 +17,4 @@ actix-session = "0.3.0"
 twilio = "0.1.3"
 rand = "0.7.3"
 actix-http = "1.0.1"
+

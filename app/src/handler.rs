@@ -289,7 +289,8 @@ pub async fn sign(
     let body = body.to_vec();
     let check_parameter = String::from_utf8_lossy(&body);
 
-    if !signer.check(check_parameter.to_string()) {
+    if let Err(e) = signer.check(check_parameter.to_string()) {
+        eprintln!("check didn't passed: {:?}", e);
         return Err(utils::bad_request("invalid"));
     }
 
