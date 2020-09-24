@@ -248,8 +248,11 @@ pub async fn sign(body: web::Bytes, session: Session, actix_data: web::Data<Arc<
     let body = body.to_vec();
     let check_parameter = String::from_utf8_lossy(&body);
 
-    if !signer.check(check_parameter.to_string()) {
-        return Err(utils::bad_request("invalid"));
+    match signer.check(check_parameter.to_string()) {
+        Ok(_) => {},
+        Err(e) => {
+            return Err(utils::bad_request("invalid"));
+        }
     }
 
     conn.execute("DELETE FROM sign_process WHERE id=?", &[id]).unwrap();
